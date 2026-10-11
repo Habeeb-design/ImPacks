@@ -22,6 +22,8 @@ export function usePackSession() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [openings, setOpenings] = useState<Opening[]>([]);
+  const [openingsLoading, setOpeningsLoading] = useState(false);
+  const portfolioRequest = useRef(0);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const opening = useRef(false);
   const identity = useRef(wallet.userId);
@@ -37,7 +39,8 @@ export function usePackSession() {
 
   useEffect(() => {
     let active = true;
-    setSession(null); setOpenings([]); setError(""); setSessionError("");
+    portfolioRequest.current++;
+    setSession(null); setOpenings([]); setOpeningsLoading(false); setError(""); setSessionError("");
     if (!wallet.configured) { setConnecting(false); return; }
     if (!wallet.authReady) { setConnecting(true); return; }
     if (!wallet.authenticated || !wallet.userId) {
@@ -58,12 +61,35 @@ export function usePackSession() {
     return () => { active = false; };
   }, [wallet.configured, wallet.authReady, wallet.authenticated, wallet.userId, wallet.getAccessToken, revision]);
 
-  useEffect(() => {
-    if (!session) return;
-    let active = true;
-    void api.portfolio(session.token).then(result => { if (active) setOpenings(previous => [...previous, ...result.openings.filter(item => !previous.some(existing => existing.id === item.id))].sort((a, b) => b.createdAt.localeCompare(a.createdAt))); }).catch(cause => { if (active) showError(cause); });
-    return () => { active = false; };
+  const refreshPortfolio = useCallback(async () => {
+    if (!session || session.user.id !== identity.current) return;
+    const owner = session.user.id;
+    const requestId = ++portfolioRequest.current;
+    setOpeningsLoading(true); setError("");
+    try {
+      const result = await api.portfolio(session.token);
+      if (identity.current === owner && portfolioRequest.current === requestId) {
+        setOpenings(result.openings.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      }
+    } catch (cause) {
+      if (identity.current === owner && portfolioRequest.current === requestId) showError(cause);
+      throw cause;
+    } finally {
+      if (identity.current === owner && portfolioRequest.current === requestId) setOpeningsLoading(false);
+    }
   }, [session, showError]);
+
+  const updateOpening = useCallback((result: Opening, ownerId: string) => {
+    if (identity.current !== ownerId) return;
+    portfolioRequest.current++;
+    setOpeningsLoading(false);
+    setOpenings(previous => [result, ...previous.filter(item => item.id !== result.id)].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }, []);
+
+  useEffect(() => {
+    void refreshPortfolio().catch(() => undefined);
+    return () => { portfolioRequest.current++; };
+  }, [refreshPortfolio]);
 
   async function openPack(packId: string, accepted: boolean, budgetCents: number) {
     if (!session || session.user.id !== wallet.userId || !accepted || opening.current) return;
@@ -83,7 +109,7 @@ export function usePackSession() {
         quoteId: current.quote.id, disclosureVersion: DISCLOSURE_VERSION, paymentProof: `demo:${current.quote.id}`,
       }, current.key);
       if (identity.current !== owner) return;
-      setOpenings(previous => [result, ...previous.filter(item => item.id !== result.id)]);
+      updateOpening(result, owner);
       setAttempt(null); sessionStorage.removeItem(attemptKey);
       return result;
     } catch (cause) {
@@ -96,5 +122,6 @@ export function usePackSession() {
   }
   const currentAccount = wallet.authenticated && session?.user.id === wallet.userId;
   return { session: currentAccount ? session : null, connecting, sessionError, retrySession, busy, error,
-    openings: currentAccount ? openings : [], attempt: attempt?.userId === wallet.userId ? attempt : null, openPack, showError };
+    openings: currentAccount ? openings : [], openingsLoading, refreshPortfolio, updateOpening,
+    attempt: attempt?.userId === wallet.userId ? attempt : null, openPack, showError };
 }

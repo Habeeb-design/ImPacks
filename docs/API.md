@@ -54,3 +54,10 @@ Payment: `confirmed`, `failed`, `unknown`. Orders: `filled`, `pending`, `failed`
 ### Public wallet balance
 
 `GET /api/wallets/:address/ausd` reads a valid EVM address on Base Sepolia. Returns WalletBalance (`address`, `chainId:84532`, `asset:"AUSD"`, `tokenAddress`, decimal-string `balanceAtomic`, exact `formatted` string, `network:"Base Sepolia"`). Invalid addresses return 400; RPC/chain/token validation failures return 503. This read does not prove account ownership or authorize payments.
+
+
+## Collector dashboard
+
+- Openings now include optional `theme`; filled positive-quantity cards receive `position: { status: "open" }`. Order receipts retain the original entry quantity and spend.
+- `POST /api/openings/:id/cards/:cardId/close` requires the current API bearer session, an `Idempotency-Key`, and `{ "confirmSimulation": true }`. Only the opening's owner can close a confirmed filled position. This paper-only action closes its entire quantity at the current fixture side price and returns the updated Opening. `position` gains `status: "closed"`, `closedAt`, `exitPriceCents`, and `proceedsCents`; the card remains in the portfolio. No wallet or Gemini order call occurs and proceeds are not redeemable funds.
+- Concurrent/replayed close requests cannot close twice. Keys are bound to owner/opening/card; reuse for another position returns `409 KEY_REUSED`. Missing/unavailable prices leave the position open and permit a same-key retry. Nonfilled orders and sandbox openings fail closed. In-memory storage and these retry guards are not durable trading infrastructure.

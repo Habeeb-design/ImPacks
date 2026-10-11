@@ -4,7 +4,7 @@ import { createPrivyVerifier } from "./privy.js";
 import type { JWTVerifyGetKey } from "jose";
 import { randomBytes, randomUUID } from "node:crypto";
 import { ZodError } from "zod";
-import { loginSchema, openSchema, quoteSchema, routes, type User } from "@impacks/contracts";
+import { closePositionSchema, loginSchema, openSchema, quoteSchema, routes, type User } from "@impacks/contracts";
 import { demoProviders, packs } from "./providers/demo.js";
 import type { Providers } from "./providers/ports.js";
 import { PackService } from "./services/packs.js";
@@ -74,5 +74,12 @@ export function buildApp(options: { mode?: string; providers?: Providers; privyA
   });
   app.get<{ Params: { id: string } }>(`${routes.openings}/:id`, async request => service.get(user(request.headers.authorization).id, request.params.id));
   app.get(routes.portfolio, async request => ({ openings: service.portfolio(user(request.headers.authorization).id) }));
+  app.post<{ Params: { id: string; cardId: string } }>(`${routes.openings}/:id/cards/:cardId/close`, async request => {
+    const identity = user(request.headers.authorization);
+    closePositionSchema.parse(request.body);
+    const key = request.headers["idempotency-key"];
+    if (typeof key !== "string" || !/^[a-zA-Z0-9_-]{8,128}$/.test(key)) throw new HttpError(400, "INVALID_KEY", "Supply an Idempotency-Key of 8–128 letters, digits, hyphens or underscores.");
+    return service.closePosition(identity.id, request.params.id, request.params.cardId, key);
+  });
   return app;
 }

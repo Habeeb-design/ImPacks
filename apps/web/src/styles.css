@@ -68,3 +68,9 @@
 
 .category-buy{width:100%;justify-content:space-between;border-radius:18px;min-height:52px;padding:15px 18px;font-size:12px}.purchase-hint{font-size:10px;color:#888;text-align:center;line-height:1.5;margin:0}.purchase-details{display:grid;gap:18px;padding:24px 28px;background:#f7f7f7;border-radius:20px;margin-top:20px}.purchase-account{display:flex;align-items:center;gap:9px;font-size:12px;color:#666}.purchase-details summary{font-size:13px;cursor:pointer}.purchase-details details p{font-size:12px;color:#777;max-width:720px}.purchase-details small{font-size:11px;color:#777}.purchase-status{text-align:center;font-size:12px;color:#888}.purchase-details .disclosure{align-items:center}.purchase-details a,.category-checkout .error a{text-decoration:underline;text-underline-offset:3px}.category-checkout .error{font-size:12px}
 @media(max-width:700px){.category-buy,.purchase-hint{grid-column:1/-1}.purchase-details{padding:20px}.price-rail .category-buy{justify-content:center;gap:28px;font-size:13px}}
+
+/* Shared navigation remains available on every screen, including narrow layouts. */
+.app-header nav a{padding:10px 0;color:#777}
+.app-header nav a[aria-current=page]{color:#171717;text-decoration:underline;text-decoration-color:#c6ad72;text-underline-offset:8px;text-decoration-thickness:2px}
+.collection-link{display:flex;justify-content:center;margin:28px 0 10px}
+@media(max-width:700px){.site-header.app-header{display:flex;flex-wrap:wrap;gap:14px;padding:22px 0}.app-header>.logo{order:0}.app-header>.account{order:1;margin-left:auto}.site-header.app-header nav{display:flex;order:2;flex-basis:100%;justify-content:center;gap:32px;border-bottom:1px solid #eee;padding:3px 0 8px;font-size:13px}.collection-link .primary{text-align:center;font-size:12px}}

@@ -16,6 +16,7 @@ async function request<T>(path: string, token?: string, body?: unknown, key?: st
   return response.status === 204 ? undefined as T : response.json();
 }
 export const api = {
+  closePosition: (token: string, openingId: string, cardId: string, key: string) => request<Opening>(`${routes.openings}/${encodeURIComponent(openingId)}/cards/${encodeURIComponent(cardId)}/close`, token, { confirmSimulation: true }, key),
   walletBalance: (address: string) => request<WalletBalance>(`${routes.wallets}/${encodeURIComponent(address)}/ausd`),
   privyLogin: (accessToken: string) => request<Session>(routes.privyLogin, accessToken, {}),
   login: (displayName: string) => request<Session>(routes.login, undefined, { displayName }),

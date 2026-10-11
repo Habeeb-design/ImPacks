@@ -48,6 +48,7 @@ test("network errors remain errors and do not create a substitute account", asyn
 });
 
 test("login returns to the selected pack and amount without external redirects", () => {
+  assert.equal(postLoginPath("/dashboard"),"/dashboard");
   assert.equal(postLoginPath("/category/crypto?amount=75"),"/category/crypto?amount=75");
   assert.equal(postLoginPath("/category/sports?amount=100"),"/category/sports?amount=100");
   for (const path of [null,"https://evil.example","//evil.example","/\\evil.example","javascript:alert(1)","/category/unknown","/login"]) {

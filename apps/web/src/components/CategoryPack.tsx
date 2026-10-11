@@ -9,7 +9,7 @@ import { usePackSession } from "../lib/session";
 import { categoryCopy, dollarsToCents, money, priceTiers, snapCustomDollars, tableCardCount, tableOverflow, type CategoryId } from "../lib/category";
 import { CardSpread } from "./CardSpread";
 import { PredictionCard } from "./PredictionCard";
-import { WalletAccount } from "./WalletAccount";
+import { SiteHeader } from "./SiteHeader";
 import { useAccountWallet } from "./WalletProvider";
 
 export function CategoryPack({ category }: { category: CategoryId }) {
@@ -78,19 +78,7 @@ export function CategoryPack({ category }: { category: CategoryId }) {
 
   return (
     <main className={`category-page category-${category}`}>
-      <header className="site-header">
-        <Link className="logo" href="/">im<span>packs</span><sup>®</sup></Link>
-        <nav aria-label="Main navigation">
-          <Link href="/">Home</Link>
-          <Link href="/packs">Packs</Link>
-          <Link href="/category/crypto">Crypto</Link>
-          <Link href="/category/sports">Sports</Link>
-          <Link href="/category/mixed">Chaos</Link>
-        </nav>
-        <div className="account">
-          <WalletAccount />
-        </div>
-      </header>
+      <SiteHeader/>
 
       <section className="category-stage">
         <div className="category-intro">
@@ -152,6 +140,7 @@ export function CategoryPack({ category }: { category: CategoryId }) {
             <span>{latest.status} · payment {latest.payment.status}</span>
           </div>
           <div className="card-grid">{latest.cards.map(card => <PredictionCard key={card.id} card={card} />)}</div>
+          <div className="collection-link"><Link className="primary" href={`/dashboard?opening=${latest.id}`}>View your collection & manage positions <span aria-hidden="true">↗</span></Link></div>
         </section>
       )}
     </main>

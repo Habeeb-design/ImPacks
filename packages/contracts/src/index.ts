@@ -25,6 +25,7 @@ export const openSchema = z.object({
   paymentProof: z.string().min(1).max(16384),
 });
 export type OpenRequest = z.infer<typeof openSchema>;
+export const closePositionSchema = z.object({ confirmSimulation: z.literal(true) });
 export type Theme = "crypto" | "sports" | "mixed";
 export type Side = "YES" | "NO";
 export interface User { id: string; displayName: string }
@@ -45,11 +46,12 @@ export interface Market {
 export interface Card {
   id: string; marketId: string; question: string; side: Side;
   allocationCents: number; priceCents: number;
+  position?: { status: "open" | "closed"; closedAt?: string; exitPriceCents?: number; proceedsCents?: number };
   order: { id: string | null; status: "filled" | "pending" | "failed" | "unknown";
     quantity: number; spentCents: number; message?: string };
 }
 export interface Opening {
-  id: string; quoteId: string; packName: string; createdAt: string;
+  id: string; quoteId: string; packName: string; createdAt: string; theme?: Theme;
   status: "completed" | "partial" | "pending" | "failed";
   payment: { status: "confirmed" | "failed" | "unknown"; reference: string | null };
   cards: Card[]; mode: "demo" | "sandbox";

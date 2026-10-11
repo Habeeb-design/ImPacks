@@ -28,6 +28,8 @@ export class PackService {
   private attempts = new Map<string, { key: string; result: Promise<Opening> }>();
   private keys = new Map<string, string>();
   private history = new Map<string, { userId: string; value: Opening }>();
+  private closeKeys = new Map<string, string>();
+  private closes = new Map<string, Promise<Opening>>();
   constructor(private packs: Pack[], private providers: Providers) {}
 
   quote(userId: string, packId: string, budgetCents?: number): Quote {
@@ -69,7 +71,7 @@ export class PackService {
   private async execute(userId: string, quote: Quote, proof: string): Promise<Opening> {
     const cards = drawCards(await this.providers.markets.listEligible(quote.pack.theme), quote.pack);
     const opening: Opening = {
-      id: randomUUID(), quoteId: quote.id, packName: quote.pack.name, createdAt: new Date().toISOString(),
+      id: randomUUID(), quoteId: quote.id, packName: quote.pack.name, theme: quote.pack.theme, createdAt: new Date().toISOString(),
       status: "pending", payment: { status: "unknown", reference: null }, cards, mode: "demo",
     };
     this.history.set(opening.id, { userId, value: opening });
@@ -83,7 +85,10 @@ export class PackService {
       return opening;
     }
     for (const card of cards) {
-      try { card.order = await this.providers.orders.buy({ card, userId, clientOrderId: card.id }); }
+      try {
+        card.order = await this.providers.orders.buy({ card, userId, clientOrderId: card.id });
+        if (card.order.status === "filled" && card.order.quantity > 0) card.position = { status: "open" };
+      }
       catch { card.order = { id: null, status: "unknown", quantity: 0, spentCents: 0, message: "Order result unknown. Reconcile before retrying." }; }
     }
     const filled = cards.filter(c => c.order.status === "filled").length;
@@ -98,5 +103,35 @@ export class PackService {
   }
   portfolio(userId: string): Opening[] {
     return [...this.history.values()].filter(o => o.userId === userId).map(o => o.value).reverse();
+  }
+  closePosition(userId: string, openingId: string, cardId: string, key: string): Promise<Opening> {
+    const opening = this.get(userId, openingId);
+    const card = opening.cards.find(item => item.id === cardId);
+    if (!card) throw new HttpError(404, "CARD_NOT_FOUND", "Card not found.");
+    if (opening.mode !== "demo") throw new HttpError(409, "CLOSE_UNAVAILABLE", "Live position closing is not connected.");
+    if (opening.payment.status !== "confirmed" || card.order.status !== "filled" || card.order.quantity <= 0) {
+      throw new HttpError(409, "POSITION_NOT_FILLED", "Only confirmed filled positions can be closed.");
+    }
+    const target = `${openingId}:${cardId}`;
+    const previousTarget = this.closeKeys.get(`${userId}:${key}`);
+    if (previousTarget && previousTarget !== target) throw new HttpError(409, "KEY_REUSED", "Use a new key for a different position.");
+    this.closeKeys.set(`${userId}:${key}`, target);
+    if (card.position?.status === "closed") return Promise.resolve(opening);
+    const previous = this.closes.get(target);
+    if (previous) return previous;
+    const result = Promise.resolve().then(async () => {
+      // Paper close only: no order adapter call, wallet transfer or redemption.
+      const market = (await this.providers.markets.listEligible(opening.theme ?? "mixed")).find(item => item.id === card.marketId && item.active);
+      const price = card.side === "YES" ? market?.yesPriceCents : market?.noPriceCents;
+      if (price === undefined || !Number.isInteger(price) || price <= 0 || price >= 100) {
+        throw new HttpError(409, "EXIT_PRICE_UNAVAILABLE", "A simulated exit price is unavailable. Your position remains open.");
+      }
+      card.position = { status: "closed", closedAt: new Date().toISOString(), exitPriceCents: price, proceedsCents: price * card.order.quantity };
+      return opening;
+    });
+    this.closes.set(target, result);
+    // Failed price lookup has no side effect, so the same key may safely retry.
+    void result.catch(() => { if (this.closes.get(target) === result) this.closes.delete(target); });
+    return result;
   }
 }

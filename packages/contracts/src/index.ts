@@ -4,7 +4,15 @@ export const routes = {
   welcomeGrant: "/api/welcome-grant", privyWebhook: "/api/webhooks/privy",
   health: "/api/health", privyLogin: "/api/auth/privy", login: "/api/auth/demo", me: "/api/me",
   logout: "/api/auth/logout", packs: "/api/packs", quotes: "/api/quotes",
+<<<<<<< HEAD
   wallets: "/api/wallets", openings: "/api/openings", portfolio: "/api/portfolio", marketCategories: "/api/market-categories",
+=======
+  openings: "/api/openings", portfolio: "/api/portfolio", checkout: "/api/checkout",
+  walletChallenge: "/api/auth/wallet/challenge", walletVerify: "/api/auth/wallet/verify",
+  walletMe: "/api/auth/wallet/me", walletLogout: "/api/auth/wallet/logout",
+  internalFulfillment: "/api/internal/checkout",
+  wallets: "/api/wallets",
+>>>>>>> origin/main
 } as const;
 export const DISCLOSURE_VERSION = "random-v1";
 export const DISCLOSURE = "Markets are randomly selected within your theme. Each YES/NO side is chosen with a 50/50 chance. Opening a pack automatically submits the selected positions within your stated budget. Selection is not investment advice or a prediction of returns.";
@@ -26,6 +34,70 @@ export const openSchema = z.object({
   paymentProof: z.string().min(1).max(16384),
 });
 export type OpenRequest = z.infer<typeof openSchema>;
+export const walletAddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/, "Supply a 20-byte hexadecimal wallet address.")
+  .refine(address => !/^0x0{40}$/.test(address), "The zero address is not a wallet.");
+export const checkoutSchema = z.strictObject({
+  packType: z.enum(["starter", "premium", "ultimate"]),
+  buyerAddress: walletAddressSchema.optional(),
+});
+export const walletChallengeSchema = z.strictObject({ walletAddress: walletAddressSchema });
+export const walletSignatureSchema = z.strictObject({
+  challengeId: z.string().uuid(), signature: z.string().regex(/^0x[0-9a-fA-F]{130}$/, "Supply a 65-byte EIP-191 signature."),
+});
+export const emptyBodySchema = z.strictObject({});
+export type WalletSignatureRequest = z.infer<typeof walletSignatureSchema>;
+export interface WalletChallenge {
+  challengeId: string; walletAddress: string; nonce: string; origin: string; domain: string;
+  chainId: 84532; issuedAt: string; expiresAt: string; message: string;
+}
+export interface WalletIdentity { walletAddress: string; chainId: 84532; expiresAt: string }
+export interface WalletSession extends WalletIdentity { token: string }
+export const fulfillmentClaimSchema = z.strictObject({ requestId: z.string().uuid() });
+export const fulfillmentAttemptSchema = z.strictObject({ requestId: z.string().uuid(), attempt: z.number().int().positive() });
+export const fulfillmentCompleteSchema = fulfillmentAttemptSchema.extend({
+  resultId: z.string().min(1).max(200).regex(/^[a-zA-Z0-9:_-]+$/),
+});
+export type FulfillmentClaimRequest = z.infer<typeof fulfillmentClaimSchema>;
+export type FulfillmentAttemptRequest = z.infer<typeof fulfillmentAttemptSchema>;
+export type FulfillmentCompleteRequest = z.infer<typeof fulfillmentCompleteSchema>;
+/** Internal backend-only contract. fulfillmentId MUST be the issuer's durable idempotency key. */
+export interface FulfillmentAuthorization {
+  fulfillmentId: string; purchaseId: string; buyerAddress: string; packType: CheckoutRequest["packType"];
+  transactionHash: string; status: "processing" | "fulfilled";
+  requestId: string; attempt: number; leaseExpiresAt: string; recoveryRequired: boolean;
+  createdAt: string; updatedAt: string; fulfilledAt: string | null; resultId: string | null;
+}
+export const checkoutParamsSchema = z.strictObject({ purchaseId: z.string().uuid() });
+export const verifyCheckoutSchema = z.strictObject({
+  transactionHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/, "Supply a 32-byte transaction hash.").transform(hash => hash.toLowerCase()),
+});
+export type VerifyCheckoutRequest = z.infer<typeof verifyCheckoutSchema>;
+export type CheckoutRequest = z.infer<typeof checkoutSchema>;
+export interface CheckoutPurchase {
+  purchaseId: string;
+  packType: CheckoutRequest["packType"];
+  buyerAddress: string;
+  asset: "AUSD";
+  amount: string;
+  amountAtomic: string;
+  decimals: 6;
+  tokenAddress: string;
+  chainId: 84532;
+  recipientAddress: string;
+  createdAt: string;
+  expiresAt: string;
+  status: "pending" | "expired" | "confirmed";
+  mode: "ausd-testnet";
+  storage: "memory" | "sqlite";
+  paymentEnabled: false;
+  updatedAt: string;
+  expiredAt: string | null;
+  confirmedAt: string | null;
+  transactionHash: string | null;
+  paymentBlockNumber: string | null;
+  paymentBlockHash: string | null;
+  paymentLogIndex: number | null;
+}
 export const closePositionSchema = z.object({ confirmSimulation: z.literal(true) });
 export interface MarketCategories { categories: string[]; fetchedAt: string; source: "gemini" }
 export type Theme = "crypto" | "sports" | "mixed";
@@ -64,6 +136,7 @@ export const AUSD_ETHEREUM_SEPOLIA = {
   chainId: 11155111, tokenAddress: "0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC", decimals: 6,
 } as const;
 
+<<<<<<< HEAD
 export interface WalletBalance { address: string; chainId: 11155111; asset: "AUSD"; tokenAddress: string; balanceAtomic: string; formatted: string; network: "Ethereum Sepolia" }
 
 export const WELCOME_GRANT_AMOUNT_ATOMIC = "50000000";
@@ -77,3 +150,44 @@ export interface WelcomeGrant {
 }
 
 export * from "./posttrade.js";
+=======
+/** Trusted backend only; never an authorization supplied by a browser. */
+export type ExecutionState = "pending" | "processing" | "partial" | "completed" | "failed" | "reconciliation-required";
+export type OrderIntentState = "prepared" | "unknown" | "open" | "filled" | "cancelled" | "rejected";
+export interface SandboxOrderIntent {
+  clientOrderId: string; card: Card; quantity: number; limitPriceCents: number;
+  feeReserveCents: number; reservedCents: number; state: OrderIntentState;
+  revision: number; exchangeOrderId: string | null; filledQuantity: number;
+  costCents: number; feeCents: number;
+}
+export interface SandboxExecution {
+  fulfillmentId: string; purchaseId: string;
+  identity: { walletAddress: string; chainId: 84532 };
+  pack: Pack; budgetCents: number; reservedCents: number;
+  mode: "sandbox"; submissionEnabled: false; accountingRule: "demo-nominal-1:1";
+  state: ExecutionState; orders: SandboxOrderIntent[];
+  createdAt: string; updatedAt: string;
+}
+export const executionReportSchema = fulfillmentAttemptSchema.extend({
+  clientOrderId: z.string().uuid(), revision: z.number().int().positive().max(1000000),
+  state: z.enum(["unknown", "open", "filled", "cancelled", "rejected"]),
+  exchangeOrderId: z.string().min(1).max(100).nullable(),
+  filledQuantity: z.number().int().min(0).max(500),
+  costCents: z.number().int().min(0).max(1000000),
+  feeCents: z.number().int().min(0).max(1000000),
+});
+export type ExecutionReport = z.infer<typeof executionReportSchema>;
+
+export type RefundState = "pending" | "authorized" | "submitting" | "submitted" | "confirmed" | "reconciliation-required" | "failed";
+/** Internal accounting only. Candidate amounts are NOT permission to transfer. */
+export interface AusdRefund {
+  refundId: string; purchaseId: string; fulfillmentId: string;
+  state: RefundState; depositAtomic: string; spentCents: number;
+  candidateAtomic: string; authorizedAtomic: string | null;
+  recipientAddress: string; treasuryAddress: string; chainId: 84532; tokenAddress: string;
+  executionDigest: string; settlementReference: string | null;
+  blockers: string[]; broadcastEnabled: false; transactionHash: string | null;
+  createdAt: string; updatedAt: string; confirmedAt: string | null;
+}
+export interface WalletBalance { address: string; chainId: 84532; asset: "AUSD"; tokenAddress: string; balanceAtomic: string; formatted: string; network: "Base Sepolia" }
+>>>>>>> origin/main

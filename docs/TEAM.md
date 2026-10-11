@@ -34,7 +34,7 @@ These are responsibilities within two teams, not four required people. Frontend 
 | FE-4 | Order and payment result screens | Frontend | Ready | Pending, partial, failed and unknown states are explicit |
 | BE-1 | Real auth and durable storage | Backend/API | Ready | Verified sessions, wallet binding, durable receipts/orders |
 | BE-2 | Gemini markets adapter | Backend/API | Ready | Live discovery, themes, fresh executable prices, sufficient liquidity |
-| BE-3 | AUSD testnet payment adapter | Backend/API | Ready | Verify sender/token/chain/recipient/amount; proof cannot be reused |
+| BE-3 | AUSD testnet payment adapter | AUSD payments developer | In progress: wallet auth, payment verification and durable fulfillment authorization tested; issuer/live rollout pending | Verify sender/token/chain/recipient/amount; proof cannot be reused |
 | BE-4 | Gemini sandbox order adapter | Backend/API | Waiting on BE-1 / BE-2 | Stable client IDs, bounded spend, actual fills and positions |
 | BE-5 | Reconciliation and remainder policy | Backend/API | Ready | Unknown orders checked before retries; refund/remainder policy recorded |
 | DEMO-1 | Real testnet end-to-end smoke test | Both | Waiting on integrations | Payment receipt + sandbox orders + portfolio match |
@@ -47,6 +47,7 @@ These are responsibilities within two teams, not four required people. Frontend 
 - Random selection runs on the server once per attempt. Refresh/retry returns the same result.
 - Never describe a pending/unknown order as a holding or a simulated receipt as on-chain settlement.
 - All keys stay server-side. Agree together before adding or renaming a required contract field.
+- Existing demo opening flow: fixed 15 AUSD pack, three cards, 5-unit budget each, zero platform fee. Authenticated checkout tiers: Starter 1, Premium 3, Ultimate 5 testnet AUSD; Stage 1 maps these to three mixed-theme cards with 100/300/500 nominal sandbox cents, with submission and issuance disabled. Whole-contract rounding remains a decision for the live testnet demo.
 - Catalog starter remains 15 AUSD / three cards. Category pages quote optional `budgetCents` from $20, $50, $100, or custom $20–$250 on $5 steps. Still three cards; leftover cents go to the first cards. Zero platform fee.
 
 ## Updating this document
@@ -57,6 +58,106 @@ These are responsibilities within two teams, not four required people. Frontend 
 4. Add an entry below for API changes, integration evidence and decisions. Both teams review shared-contract changes.
 
 ## Handoff log
+
+Wallet ownership and fulfillment authorization — October 11, 2026: five-minute
+EIP-191/SIWE challenges now bind a 256-bit server nonce, wallet, Base Sepolia chain,
+configured application origin/domain, issue time and expiry. viem verifies the exact
+stored message. Challenge consumption and creation of a 15-minute wallet session
+commit atomically; SQLite persists only session-token hashes and supports revocation.
+Checkout creation derives its owner from this identity, and status/verification
+require the same owner. Demo login cannot authorize wallet checkout.
+
+Schema version 2 adds challenges, sessions, purchase ownership and fulfillment jobs
+without deleting prior records. Legacy purchases retain NULL ownership and require
+manual reconciliation; their old buyer field is not automatically trusted. Internal
+fulfillment uses a separate backend-only credential, one stable authorization ID
+per confirmed owned purchase, five-minute leases, increasing attempt numbers and
+immutable completion. Concurrent and stale requests cannot allocate another job
+or overwrite its result. Recovery keeps the same fulfillment ID after restart.
+
+The Gemini/pack-generation developer must implement the documented
+[internal fulfillment contract](FULFILLMENT.md): durable deduplication of issuance
+by fulfillment ID and reconciliation before retrying unknown external outcomes.
+Leases fence this API's writes, not external side effects. No Gemini logic, card
+generation, pack issuance or UI components were changed. Exactly-once external
+issuance cannot be claimed until the issuer implements this contract.
+
+Validation: Docker Node 24/npm 11 typecheck, all 85 tests (61 prior plus 24 auth/
+fulfillment tests), and full build passed. Coverage includes signature tampering,
+nonce replay, origin binding, session expiry/revocation, owner isolation, concurrent
+claims/completions, database migration and restart recovery. Existing strict payment
+checks remain intact and run behind real signed test sessions.
+
+Configure `APP_ORIGIN` as the exact frontend origin, with HTTPS except localhost;
+provision `INTERNAL_FULFILLMENT_KEY` only to the API and trusted issuer. Frontend
+must sign the challenge message and pass the wallet bearer token to the new typed
+client methods (keep it in memory; reauthenticate on reload/expiry). EOA wallets
+only for this milestone; contract-wallet signatures are unsupported. `paymentEnabled`
+stays false pending issuer idempotency integration, live wallet/testnet end-to-end
+evidence, rate limits and post-confirmation reorg/reconciliation policy.
+
+Persistent checkout and verification — October 11, 2026: checkout records now use
+Node 24's SQLite driver with WAL/FULL synchronization and a UNIQUE transaction-hash
+constraint. The persistent Compose volume is `impacks-node24_checkout_data`, mounted
+at `/var/lib/impacks`; schema version 1 initializes automatically. No new npm packages.
+`POST /api/checkout/:purchaseId/verify` accepts only a hash and checks Base Sepolia,
+successful receipt, official token, strict Transfer event, buyer, stored recipient,
+exact amount/decimals, at least 12 confirmations and canonical inclusion. Confirmation
+and hash consumption are atomic; repeats are idempotent across database connections.
+An expired purchase may reconcile an on-time mined payment; old/late transfers are
+rejected. RPC failures and pending receipts do not permanently fail purchases.
+
+Validation: Docker Node 24.21.0/npm 11.19.0 `npm run typecheck`, all 61 tests, and
+`npm run build` passed. Tests include real viem HTTP decoding against a local RPC
+fixture, invalid receipts, depth/reorg checks, concurrent claims, database reopen
+persistence and the actual SQLite uniqueness constraint. The empty persistent-volume
+schema was also initialized and inspected in separate Node processes. No real payment
+receipt was available: do not label live payment verification complete.
+
+Existing checkout fields/routes are preserved; shared types gain confirmed status,
+SQLite storage and evidence timestamps/hash/block/log fields. The typed client gains
+`verifyCheckout`; no frontend components, Gemini or pack generation were changed.
+`paymentEnabled` remains false: a supplied buyer address is not authenticated ownership,
+and these public verification records must not grant an entitlement to the caller.
+Before rollout: bind users to wallets, authorize fulfillment and consume each purchase
+once, add rate limits and post-confirmation reorg/reconciliation policy, record a real
+testnet receipt, and back up the database. Twelve L2 blocks are not L1 finality.
+One persistent local database is required; use a shared transactional database for
+multi-host deployment. Do not delete the checkout volume or consumed hashes.
+Set RPC/token/recipient and optional confirmation depth in the API environment;
+see [backend setup](../apps/api/README.md#persistent-checkout-and-verification).
+
+Checkout request handoff — October 11, 2026: `POST /api/checkout` and
+`GET /api/checkout/:purchaseId` now use shared Zod schemas/DTOs and the isolated
+`CheckoutService`. Prices are server-owned (1/3/5 AUSD), IDs are server UUIDs,
+expiry is 15 minutes, and only pending/expired states exist. Configure
+`AUSD_RECIPIENT_ADDRESS`; missing/invalid configuration returns 503 on creation.
+Responses declare in-memory storage and `paymentEnabled: false`. No transaction
+confirmation, Gemini calls, pack generation or UI components were implemented.
+The typed client has two additive checkout methods as required by contract policy.
+These unauthenticated request-only routes do not verify wallet ownership; UUID
+lookup is not authentication. Records disappear on restart and do not span replicas.
+Before actual testnet purchases: durable storage, payer binding, receipt verification,
+replay protection, retry/reconciliation and fulfillment mapping are still required.
+The existing 15-AUSD demo packs/quotes remain unchanged. See [API details](API.md).
+Validation in the existing Node 24/npm 11 Docker container: `npm run typecheck`,
+`npm test` (26 passing: 17 existing plus nine checkout tests), and `npm run build`
+all passed. `git diff --check` passed. The new tests cover all three prices,
+unique IDs, retrieval, invalid wallets/types, rejected client overrides, exact
+expiry, missing records/configuration, process-local storage and provider isolation.
+
+Docker development environment verified October 11, 2026: existing Docker Desktop
+4.22.0 starts successfully on Intel macOS 11.7.11. `compose.node24.yaml` provides
+Linux Node 24.21.0/npm 11.19.0 from a digest-pinned official image, with live source
+mounts and separate dependency/build volumes for all workspaces. See
+[Docker setup](DOCKER.md) for start, install, backend and check commands.
+`npm install --no-save` succeeded with lifecycle scripts enabled; esbuild 0.28.2's
+install script and Linux binary were explicitly verified. Standard
+`npm run typecheck`, `npm test` (all 17 tests) and `npm run build` passed in Linux.
+The backend dev server responded on host `http://localhost:3001/api/health` with
+the expected demo labels. This supersedes the local macOS test-runner blocker for
+container development; native macOS Node/npm remain unchanged. No application
+features or dependency manifests were changed for this environment setup.
 
 Next.js migration verification: `npm run typecheck`, all 11 API tests, and `npm run build` passed. Browser smoke testing against the built Next.js server verified login, pack opening, collection and session restoration after reload through the API rewrite, with no browser warning/error logs. Real vendor integrations remain unverified.
 
@@ -73,6 +174,36 @@ Next.js migration verification: `npm run typecheck`, all 11 API tests, and `npm 
 
 ## Open decisions
 
+### AUSD infrastructure handoff — October 11, 2026
+
+- Branch: `feature/ausd-payments`. Added only viem as a direct dependency, isolated
+  `apps/api/src/providers/ausd` configuration/client/diagnostic, and six focused tests.
+  Shared contracts, frontend, Gemini, pack generation and demo wiring are unchanged.
+- Agora's official deployment and precision documentation agree with the existing
+  shared constants: Base Sepolia 84532, token
+  `0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC`, six decimals.
+- Live evidence: compiled diagnostic against `https://sepolia.base.org` succeeded
+  at block `47991891`, checking chain ID, contract bytecode and `decimals()` = 6.
+  No recipient was configured; no transaction was signed or sent. This is
+  connectivity evidence, not payment verification or a completed vendor integration.
+- Checks: `npm run typecheck`, `npm run build`, and `git diff --check` passed.
+  Standard `npm test` is blocked by the existing esbuild binary requiring macOS 12
+  (`_SecTrustCopyCertificateChain` missing on macOS 11.7.11). The local shell has
+  Node 20.18/npm 10.8 rather than the required Node 24/npm 11. Dependency installation
+  succeeded with lifecycle scripts disabled. No dependency versions were downgraded.
+- Fallback validation: TypeScript compiled both test files with strict checking
+  into ignored `apps/api/node_modules/.ausd-check`; running
+  `node --experimental-require-module --test apps/api/node_modules/.ausd-check/test/*.test.js`
+  with local listeners allowed passed all 17 tests (11 existing, six AUSD).
+- Next configuration: provide `AUSD_RPC_URL` and the public receiving wallet in
+  `apps/api/.env`; retain the documented token address. Run
+  `npm run check:ausd -w @impacks/api` on the supported toolchain. No private key
+  is required. Recipient is optional for connectivity only.
+- Remaining BE-3 work: payer/quote-bound receipt verification, confirmations and
+  replay protection backed by durable storage. Coordinate identity/storage with
+  their owners before wiring checkout; these are outside this infrastructure task.
+
+- Choose login/wallet provider with the frontend team; target email or social login plus wallet attachment/embedded wallet.
 Motion handoff: the [opening specification](design/pack-opening/animation-spec.json) uses the user's selected black-and-gold wrapper, three accelerating 3D tear beats, rarity aura, and a lifted face-up card. Play, pause, replay, skip, chapter selection, and timeline scrubbing are available in the conversation prototype. Rarity colors and the single revealed card are illustrative; no rarity contract or probability mapping is implemented. Production must reveal the server's existing result and preserve actual order status. The prototype does not change application code or vendor integrations.
 
 October 11 motion revision: the tear advances left to right along the heat-seal seam in one-pixel increments. The edge now has gentle broad curves, with micro ripples and frayed fibers removed per user feedback. A textured, perspective-projected foil mesh curls smoothly toward the viewer, exposing the silver underside while the untouched right side remains sealed. The strip releases after reaching the far edge; the aura and card flip follow. The latest draft reduces the interior to a narrow 4–7px back-lining sliver tucked directly beneath the torn seam, with subtle pocket shadow; the tall raised rear wall was removed per user feedback. A finite rarity-colored reflection travels across the inner foil and curled strip, then the revealed card; it follows pause, scrub and reduced-motion behavior. The inner reflection is softened to match the smaller exposed lining. Latest extraction revision keeps the opaque wrapper stationary while the 156×260px card slides upward 300px through the 192×338px wrapper opening, with side clearance and an initially matching tilt. The glow follows the card, the flip waits until full clearance, and the empty wrapper fades afterward. The mid-extraction view was visually checked. This supersedes the downward-wrapper exit. The latest timing pass runs 8.4 seconds with quintic easing, a stronger smoothly ramped pre-tear shake, overlapping tear pulls, subpixel tear-front motion, and three full card spins plus a final half-turn before revealing the artwork and shimmer. Extraction and card-to-wrapper clearance are preserved. Reduced motion skips the shake and spins. The foil mesh uses 60% fewer triangles, shares the underside sheen gradient per frame, and stops rendering the detached strip when it is gone. User approved this single-pack direction. User clarified that multiple cards come from one pack: the revised multi-card draft uses one wrapper and three bets under the selected market category. The cards slide out with a 160ms stagger, fan apart after clearing the seam, then spin and reveal individually. Crypto, Sports and Chaos category selection updates all three illustrative bets together. One-pack playback, all-Sports results, and three-card mobile fit were checked with no browser script errors. This supersedes the multiple-pack batch design. One existing server opening should supply all three cards; no bulk purchase API is needed. Production integration remains pending.
@@ -86,6 +217,56 @@ October 11 motion revision: the tear advances left to right along the heat-seal 
 
 Use `codex/frontend-<task>` and `codex/backend-<task>` branches. Keep PRs focused; both teams review contract changes. Run `npm run typecheck`, `npm test`, and `npm run build`. Do not merge secrets or hardcoded claims of successful vendor integration. Use the PR template to record the next team's handoff.
 
+## Stage 1 execution integration handoff — October 11, 2026
+
+Inspected remote `mekila` at `31d80d54c386dc2cf9f081dac4dd8909d8d6e52d`; it was not
+merged into `feature/ausd-payments`. Fetched for inspection only. Its auth, frontend,
+expanded themes and sandbox startup differ from this working tree; no blanket merge
+or changes to those teammate files. Existing uncommitted AUSD work is preserved.
+
+Added schema-3 durable execution/budget/order-intent records and backend-only lease-
+fenced endpoints. Confirmed owned Starter/Premium/Ultimate purchases reserve
+100/300/500 nominal sandbox cents. Selection is persisted once using existing
+server-side draw logic; client IDs and exchange IDs are unique. Cumulative fill/fee
+reports are idempotent and unknown/over-limit outcomes require reconciliation.
+Selective Gemini discovery port replaces legacy proof echo and order submission
+with fail-closed guards. No live orders, transfers, card issuance, refunds or x402.
+
+Contract/client/docs: [EXECUTION.md](EXECUTION.md), shared SandboxExecution/report
+types, server-only typed execution client. Frontend APIs/components unchanged.
+Blockers: verified fees (10% preparation allowance is NOT a live cap), sandbox
+tradability, shared treasury reservation, durable submission permits/reconciliation,
+small-budget card policy, final issuance and live test evidence. `paymentEnabled`
+remains false. This is safe preparation/accounting, not a complete vendor integration.
+
+Stage 1 validation: existing Node 24/npm 11 Docker `npm test` passed all 99 tests
+(85 prior + 14 orchestration tests), `npm run typecheck` and `npm run build` passed.
+`git diff --check` passed. Tests use explicit mock markets/payment evidence; no live
+Gemini order or new blockchain transfer was performed. Migration/restart behavior
+was exercised on test SQLite files; the existing development volume migrates to
+schema 3 on next API startup. No commits, pushes, merges or deletions.
+
+Refund preparation handoff — October 11, 2026: schema 4 adds unique refund records,
+integer remainder accounting, a server-only signed-transaction staging boundary and
+read-only receipt reconciliation. Production refund authorization is blocked until
+an authoritative Gemini settlement adapter supplies final orders/fees, no further
+orders, the exact execution digest and revalidated payment evidence. Broadcasting
+is hard-disabled; no signer is configured and no transfer has been performed.
+Authorized accounting is sealed against later execution reports. Test signers are
+fresh ephemeral fixtures only. See [REFUNDS.md](REFUNDS.md).
+
+Read-only public RPC check verified Base Sepolia block 47995324, official AUSD
+contract bytecode and six decimals. Actual API configuration is missing RPC/token,
+recipient, APP_ORIGIN and INTERNAL_FULFILLMENT_KEY; the existing persistent database
+was schema 2 with zero purchases at inspection. New startup migrations are additive.
+Treasury control and live payment/refund evidence remain unverified. The interactive
+payment diagnostic prepares a wallet-signature login and Starter checkout, but
+never signs or broadcasts. Initial expanded suite: all 119 tests passed.
+
+Pre-push validation: all 119 tests, full typecheck and API/frontend build passed in
+Node 24 Docker; staged diff whitespace checks passed. Refund broadcasting remains
+disabled and final settlement authorization remains blocked. User explicitly
+requested committing/pushing the current work to feature/ausd-payments.
 ## October 11 landing + Privy update
 
 Landing now centers “Gamble on gambling.” with floating Bitcoin, Ethereum, NFL, MLB, WNBA and NBA logos. The main CTA navigates to `/login`; the black-foil category rail remains below. `/packs` retains the existing simulated opening/collection flow. Cards show side, spend and gross conditional demo payout ($1 per winning contract); pending/failed orders never display a confirmed holding or payout. Random selection is explicitly distinguished from better odds.
@@ -195,6 +376,7 @@ Documentation checks: local links, Markdown structure and diff whitespace review
 - Added authenticated paper-only full-position closing with owner checks, explicit simulation acknowledgment and stable request identity. Client retry keys are owner-scoped; server concurrent requests share one result. Original buy receipts remain unchanged. Missing prices leave positions open; sandbox/live closing is unavailable. No AUSD redemption or live Gemini selling is enabled. Collections remain in memory and reset on service restart.
 - Dashboard scope is isolated from the uncommitted genre browser, welcome grants, pack animation and architecture work. The isolated dashboard-only snapshot passed typecheck, all 28 tests (19 API + 9 web), and the production build. Authenticated ownership/closing/retries are covered by API tests; real Privy dashboard interaction was not manually completed.
 
+<<<<<<< HEAD
 ### Welcome funding configuration (2026-10-11)
 
 - Configured the supplied external wallet locally in the ignored, owner-only worker secret file; worker commands load it separately from API configuration. Verified the API does not load the funding key and the worker key matches the configured public treasury. No secret was added to tracked files.
@@ -232,3 +414,19 @@ Privy ID. `/marketplace` and proxied health return HTTP 200; unauthenticated por
 returns 401. Persistent ledger tables were verified read-only. Real two-account
 email sign-in and browser trades still require the user to complete login; test JWTs
 are not live Privy evidence. Local start instructions are in POSTTRADE.md.
+=======
+## AUSD/main integration
+
+User authorized pushing AUSD work to main. Integrated current main's Privy identity,
+wallet balance, category budget and simulated dashboard APIs with the separate
+wallet-authenticated AUSD checkout. Both shared contracts and typed client methods
+are retained. The embedded serverless demo explicitly uses ephemeral storage and
+rejects wallet checkout/internal settlement; durable AUSD operations require the
+separate API. Payments/refund broadcasting remain disabled. No trading or transfers.
+
+Integration validation: 128 API tests and nine web tests passed in Node 24 Docker,
+along with typecheck and the full production build. Resolved declaration portability
+with an explicit viem client type and kept the SQLite runtime path out of Next's
+asset bundling. Main's frontend components and pack service are preserved. The
+embedded-demo isolation regression test passes. User authorized updating main.
+>>>>>>> origin/main

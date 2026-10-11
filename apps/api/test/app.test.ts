@@ -6,7 +6,7 @@ import { demoProviders, packs } from "../src/providers/demo.js";
 import { drawCards, PackService } from "../src/services/packs.js";
 
 async function setup(t: test.TestContext, providers = demoProviders()) {
-  const app = buildApp({ providers });
+  const app = buildApp({ providers, checkoutDatabasePath: ":memory:" });
   t.after(() => app.close());
   const login = await app.inject({ method: "POST", url: routes.login, payload: { displayName: "Builder" } });
   assert.equal(login.statusCode, 200);
@@ -151,4 +151,15 @@ test("category quote scales the three-card budget on $5 steps", async t => {
 
 test("unimplemented external mode fails closed", () => {
   assert.throws(() => buildApp({ mode: "sandbox" }), /Only demo mode/);
+});
+
+test("embedded demo preserves catalog but cannot run durable payment operations", async t => {
+  const app = buildApp({ ephemeralDemo: true });
+  t.after(() => app.close());
+  assert.equal((await app.inject({ url: "/api/packs" })).statusCode, 200);
+  for (const url of ["/api/checkout", "/api/auth/wallet/challenge"]) {
+    const response = await app.inject({ method: "POST", url, payload: {} });
+    assert.equal(response.statusCode, 503);
+    assert.equal(response.json().error.code, "DURABLE_API_REQUIRED");
+  }
 });

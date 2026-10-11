@@ -55,7 +55,7 @@ test("confirmed wallet-owned tiers reserve server-priced sandbox budgets only", 
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(value.budgetCents, budget); assert.equal(value.reservedCents, budget);
     assert.equal(value.state, "pending"); assert.equal(value.submissionEnabled, false);
-    assert.equal(value.identity.chainId, 84532); assert.equal(value.mode, "sandbox");
+    assert.equal(value.identity.chainId, 11155111); assert.equal(value.mode, "sandbox");
     assert.deepEqual((await a.post(id, "reserve", lease)).json(), value);
     assert.equal((await a.post(id, "reserve", { ...lease, budgetCents: 99999 })).statusCode, 400);
   }

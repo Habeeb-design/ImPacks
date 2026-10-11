@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { CheckoutPurchase } from "@impacks/contracts";
+import { AUSD_ETHEREUM_SEPOLIA, type CheckoutPurchase } from "@impacks/contracts";
 import { HttpError } from "../errors.js";
 
 export const defaultCheckoutDatabasePath = resolve(dirname(fileURLToPath(import.meta.url)), "../../data/checkout.sqlite");
@@ -24,7 +24,7 @@ export class CheckoutStore {
     if (this.storage === "sqlite") mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(path, { timeout: 5000 });
     const version = this.db.prepare("PRAGMA user_version").get()!.user_version as number;
-    if (version > 4) { this.db.close(); throw new Error("Unsupported checkout database schema version."); }
+    if (version > 5) { this.db.close(); throw new Error("Unsupported checkout database schema version."); }
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA synchronous = FULL;
@@ -97,8 +97,15 @@ export class CheckoutStore {
           evidence_json TEXT,
           UNIQUE(treasury_address, nonce)
         );
-        PRAGMA user_version = 4;
+        CREATE TABLE IF NOT EXISTS checkout_keys (
+          owner_wallet TEXT NOT NULL, request_key TEXT NOT NULL, fingerprint TEXT NOT NULL,
+          purchase_id TEXT NOT NULL REFERENCES checkout_purchases(id), PRIMARY KEY(owner_wallet, request_key)
+        );
+        PRAGMA user_version = 5;
       `);
+      for (const table of ["wallet_sessions", "wallet_challenges"]) {
+        if (!this.db.prepare(`PRAGMA table_info(${table})`).all().some(column => column.name === "chain_id")) this.db.exec(`ALTER TABLE ${table} ADD COLUMN chain_id INTEGER`);
+      }
     });
   }
   close() { this.db.close(); }
@@ -120,7 +127,15 @@ export class CheckoutStore {
     if (!row?.owner_wallet || row.owner_wallet !== wallet.toLowerCase()) {
       throw new HttpError(404, "PURCHASE_NOT_FOUND", "Purchase not found.");
     }
-    return this.get(id);
+    const purchase = this.get(id);
+    if (purchase.chainId !== AUSD_ETHEREUM_SEPOLIA.chainId) throw new HttpError(409, "LEGACY_CHECKOUT_NETWORK", "This purchase belongs to a previous network and requires reconciliation.");
+    return purchase;
+  }
+
+  listOwned(wallet: string): CheckoutPurchase[] {
+    return this.db.prepare("SELECT id FROM checkout_purchases WHERE owner_wallet = ? ORDER BY rowid DESC LIMIT 100")
+      .all(wallet.toLowerCase()).map(row => this.expire(row.id as string, new Date().toISOString()))
+      .filter(purchase => purchase.chainId === AUSD_ETHEREUM_SEPOLIA.chainId);
   }
 
   hasVerifiedOwner(id: string): boolean {

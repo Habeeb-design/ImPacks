@@ -23,7 +23,7 @@ async function handle(request: Request) {
     }
   }
 
-  demo.impacksDemo ??= buildApp({ mode: process.env.APP_MODE ?? "demo", ephemeralDemo: true });
+  demo.impacksDemo ??= buildApp({ mode: process.env.APP_MODE ?? "demo", embeddedDemo: true });
   await demo.impacksDemo.ready();
   const payload = request.method === "POST" ? await request.text() : undefined;
   if (payload && Buffer.byteLength(payload) > 32_768) {

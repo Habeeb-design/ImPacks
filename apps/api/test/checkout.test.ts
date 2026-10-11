@@ -2,7 +2,7 @@ import { appOrigin, walletAccount, walletInject } from "./wallet-helpers.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { AUSD_BASE_SEPOLIA, routes, type CheckoutPurchase } from "@impacks/contracts";
+import { AUSD_ETHEREUM_SEPOLIA, routes, type CheckoutPurchase } from "@impacks/contracts";
 import { buildApp } from "../src/app.js";
 import { demoProviders } from "../src/providers/demo.js";
 
@@ -30,8 +30,8 @@ test("checkout creates and retrieves each tier with server-owned payment instruc
     assert.equal(purchase.amountAtomic, amountAtomic);
     assert.equal(purchase.buyerAddress, buyerAddress);
     assert.equal(purchase.recipientAddress, recipient);
-    assert.equal(purchase.chainId, 84532);
-    assert.equal(purchase.tokenAddress, AUSD_BASE_SEPOLIA.tokenAddress);
+    assert.equal(purchase.chainId, 11155111);
+    assert.equal(purchase.tokenAddress, AUSD_ETHEREUM_SEPOLIA.tokenAddress);
     assert.equal(purchase.decimals, 6);
     assert.equal(purchase.asset, "AUSD");
     assert.equal(purchase.status, "pending");

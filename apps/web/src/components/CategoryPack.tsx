@@ -10,6 +10,7 @@ import { categoryCopy, dollarsToCents, money, priceTiers, snapCustomDollars, tab
 import { PackOpeningReveal } from "./PackOpeningReveal";
 import { CardSpread } from "./CardSpread";
 import { PredictionCard } from "./PredictionCard";
+import { TestnetCheckout } from "./TestnetCheckout";
 import { SiteHeader } from "./SiteHeader";
 import { useAccountWallet } from "./WalletProvider";
 
@@ -139,6 +140,8 @@ export function CategoryPack({ category }: { category: CategoryId }) {
         ) : null}
         <p className="demo-note">Payments and trades are simulated. No money moves. Sessions may reset.</p>
       </section>
+
+      <TestnetCheckout key={`${wallet.userId}:${wallet.address}:${category}`} packId={category} budgetCents={budgetCents} accepted={accepted}/>
 
       {latest && latest.packName.startsWith(pack?.name ?? "___") && (
         <section className="opening" aria-labelledby="opened-title">

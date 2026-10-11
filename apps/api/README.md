@@ -29,7 +29,7 @@ and `verifyAusdConnectivity`. This isolated, read-only module does not implement
 `PaymentProvider.confirm` or enable checkout. No wallet library or private key is needed.
 
 Using Node 24 and npm 11, copy `.env.example` to `.env` in this directory if no local
-file exists. Set `AUSD_RPC_URL` to your Base Sepolia HTTP(S) endpoint. Keep
+file exists. Set `AUSD_RPC_URL` to your Ethereum Sepolia HTTP(S) endpoint. Keep
 `AUSD_CONTRACT_ADDRESS=0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC`.
 Set `AUSD_RECIPIENT_ADDRESS` to the public address of your receiving wallet when
 available; it is optional for this diagnostic. Keep `APP_MODE=demo`.
@@ -40,7 +40,7 @@ From the repository root:
 npm run check:ausd -w @impacks/api
 ```
 
-The diagnostic checks RPC chain ID 84532, deployed bytecode, and `decimals()` = 6
+The diagnostic checks RPC chain ID 11155111, deployed bytecode, and `decimals()` = 6
 at the reported block. It exits nonzero on failure and suppresses raw RPC errors
 to avoid exposing endpoint credentials. Success proves connectivity only, not a
 payment, wallet ownership, or readiness to accept funds. Unit tests use explicitly
@@ -62,17 +62,17 @@ Existing routes remain; wallet authentication is now required. Optional buyerAdd
 
 Node 24's built-in `node:sqlite` stores purchases with WAL, FULL synchronization,
 a 5-second busy timeout, and a UNIQUE case-insensitive transaction-hash constraint.
-Schema version 2 is initialized/migrated automatically without deleting records. Confirmation and hash consumption
+Schema version 5 is initialized/migrated automatically without deleting records. Confirmation and hash consumption
 commit in one short database transaction; RPC calls happen outside the write lock.
 `src/storage/checkout.ts` owns persistence; `src/providers/ausd/verify.ts` verifies
 receipts; `src/services/checkout.ts` coordinates them without calling pack providers.
-No additional npm dependency or separate database service is required.
+SQLite checkout requires no separate database service. Optional welcome grants use PostgreSQL independently.
 
 Configuration in `apps/api/.env`:
 
 ```dotenv
 APP_MODE=demo
-AUSD_RPC_URL=<trusted Base Sepolia HTTP(S) endpoint>
+AUSD_RPC_URL=<trusted Ethereum Sepolia HTTP(S) endpoint>
 AUSD_CONTRACT_ADDRESS=0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC
 AUSD_RECIPIENT_ADDRESS=<your nonzero receiving wallet>
 AUSD_MIN_CONFIRMATIONS=12
@@ -145,3 +145,5 @@ execution and order-intent ledgers; the existing database path/volume and intern
 credential are reused. No Gemini credentials or new dependencies are needed.
 Read-only discovery is selectively adapted from `mekila`; no order submission or
 proof-echo payment confirmation is available. The frontend APIs remain unchanged.
+
+Category checkout and owner-visible status are documented in [the integration handoff](../../docs/INTEGRATION_TEST.md). The current UI uses Privy login and an additional wallet ownership signature; the display-name demo endpoint is only for explicit simulation.

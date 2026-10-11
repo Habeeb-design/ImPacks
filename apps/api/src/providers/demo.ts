@@ -1,11 +1,9 @@
+import { geminiPacks } from "./gemini-catalog.js";
 import type { Market, Pack } from "@impacks/contracts";
 import type { Providers } from "./ports.js";
 
-export const packs: Pack[] = [
-  { id: "crypto", name: "Crypto Pack", theme: "crypto", description: "Three surprises from the world of crypto.", cardCount: 3, priceAtomic: "15000000", budgetCents: 1500 },
-  { id: "sports", name: "Sports Pack", theme: "sports", description: "Three picks. A whole new reason to watch.", cardCount: 3, priceAtomic: "15000000", budgetCents: 1500 },
-  { id: "mixed", name: "Chaos Pack", theme: "mixed", description: "A little bit of everything. Expect the unexpected.", cardCount: 3, priceAtomic: "15000000", budgetCents: 1500 },
-];
+// Only these editions have explicit demo fixtures. Other catalog entries stay previews.
+export const packs: Pack[] = geminiPacks.filter(pack => ["crypto", "sports", "mixed"].includes(pack.id));
 // UI fixtures, not Gemini markets or live odds.
 const markets: Market[] = [
   { id: "demo-btc", question: "Will Bitcoin finish the month above $100,000?", theme: "crypto", yesPriceCents: 55, noPriceCents: 45, active: true },

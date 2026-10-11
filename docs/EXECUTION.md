@@ -3,7 +3,7 @@
 This is preparation and durable accounting, **not an order-submission integration**.
 No exchange credentials, order HTTP requests, terms acceptance, blockchain transfers,
 x402, refunds or pack issuance are implemented here. `paymentEnabled` stays false.
-AUSD on Base Sepolia and Gemini's separately pre-funded sandbox USD are independent.
+AUSD on Ethereum Sepolia and Gemini's separately pre-funded sandbox USD are independent.
 The 1:1 nominal mapping is internal demonstration accounting, not conversion, backing,
 a deposit into Gemini, or a promise of redeemability.
 
@@ -129,7 +129,7 @@ reconcile outstanding orders before final issuance/settlement. No automatic refu
 - Add durable submission permits, per-key nonce coordination and reconciliation by clientOrderId, including the crash-before/after-network boundary.
 - Implement audited reconciliation clearance and safe handling of late fills/fees, post-payment reorgs, balances, rate limits and provider outages.
 - Add durable card issuance keyed by fulfillmentId, then integrate frontend result retrieval without exposing internal credentials.
-- Run an explicitly approved end-to-end Base Sepolia/sandbox smoke test. Do not enable mainnet or production trading.
+- Run an explicitly approved end-to-end Ethereum Sepolia/sandbox smoke test. Do not enable mainnet or production trading.
 
 No new environment variables or dependencies are required for Stage 1. Continue
 using AUSD_DATABASE_PATH, APP_ORIGIN, INTERNAL_FULFILLMENT_KEY and the existing AUSD

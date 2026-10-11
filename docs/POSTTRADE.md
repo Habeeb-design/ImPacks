@@ -1,6 +1,6 @@
 # User-to-user position resale
 
-Implemented first slice on `codex/posttrade`, based on preserved UI/grant commit `b09afae`. The independent `codex/integration-ui-backend` merge owns checkout, execution and frontend purchase integration. This branch does not resolve or overwrite that merge.
+Implemented first slice on `codex/posttrade`, based on preserved UI/grant commit `b09afae`, and reconciled into `codex/integration-ui-backend` alongside checkout, execution and the current UI. See [the combined test walkthrough](INTEGRATION_TEST.md).
 
 ## Product decision
 

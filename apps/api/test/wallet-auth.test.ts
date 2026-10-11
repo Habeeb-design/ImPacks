@@ -32,10 +32,10 @@ test("wallet challenges bind origin, domain, chain, wallet and unique cryptograp
   assert.match(a.nonce, /^[0-9a-f]{64}$/);
   assert.equal(a.origin, appOrigin);
   assert.equal(a.domain, "localhost:3000");
-  assert.equal(a.chainId, 84532);
+  assert.equal(a.chainId, 11155111);
   assert.equal(a.walletAddress, walletAccount.address);
   assert.equal(Date.parse(a.expiresAt) - Date.parse(a.issuedAt), 300_000);
-  for (const bound of [a.domain, a.origin, a.walletAddress, a.nonce, a.expiresAt, "84532"]) assert.ok(a.message.includes(bound));
+  for (const bound of [a.domain, a.origin, a.walletAddress, a.nonce, a.expiresAt, "11155111"]) assert.ok(a.message.includes(bound));
   const response = await verify(a.challengeId, await walletAccount.signMessage({ message: a.message }));
   assert.equal(response.statusCode, 200);
   assert.equal(response.headers["cache-control"], "no-store");
@@ -55,7 +55,7 @@ for (const scenario of ["wrong signer", "changed nonce", "changed domain", "chan
     let message = a.message;
     if (scenario === "changed nonce") message = message.replace(a.nonce, "a".repeat(64));
     if (scenario === "changed domain") message = message.replaceAll("localhost:3000", "evil.example");
-    if (scenario === "changed chain") message = message.replace("84532", "1");
+    if (scenario === "changed chain") message = message.replace("11155111", "1");
     const account = scenario === "wrong signer" ? otherAccount : walletAccount;
     const signature = scenario === "malformed signature" ? `0x${"00".repeat(65)}` : await account.signMessage({ message });
     const id = scenario === "other challenge" ? (await challenge()).challengeId : a.challengeId;
@@ -177,7 +177,7 @@ test("version-1 database migration preserves legacy records without granting own
   const { app } = setup(t, path);
   assert.equal((await app.inject({ url: `/api/checkout/${id}`, headers: await walletHeaders(app) })).statusCode, 404);
   const inspected = new DatabaseSync(path); t.after(() => inspected.close());
-  assert.equal(inspected.prepare("PRAGMA user_version").get()!.user_version, 4);
+  assert.equal(inspected.prepare("PRAGMA user_version").get()!.user_version, 5);
   assert.equal(inspected.prepare("SELECT owner_wallet FROM checkout_purchases WHERE id=?").get(id)!.owner_wallet, null);
   assert.equal(inspected.prepare("SELECT count(*) AS n FROM checkout_purchases").get()!.n, 1);
 });

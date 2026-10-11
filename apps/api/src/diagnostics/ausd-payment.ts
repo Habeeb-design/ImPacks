@@ -33,8 +33,8 @@ try {
   const created = await app.inject({ method: "POST", url: "/api/checkout", headers, payload: { packType: "starter" } });
   if (created.statusCode !== 201) throw new Error("Checkout failed");
   const purchase = created.json<CheckoutPurchase>();
-  if (purchase.amountAtomic !== "1000000" || purchase.chainId !== 84532) throw new Error("Unexpected checkout");
-  console.log(JSON.stringify({ purchase, unsignedWalletInstruction: { chainId: "0x14a34", from: buyer, to: purchase.tokenAddress, value: "0x0",
+  if (purchase.amountAtomic !== "1000000" || purchase.chainId !== 11155111) throw new Error("Unexpected checkout");
+  console.log(JSON.stringify({ purchase, unsignedWalletInstruction: { chainId: "0xaa36a7", from: buyer, to: purchase.tokenAddress, value: "0x0",
     data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [getAddress(purchase.recipientAddress), 1000000n] }) } }, null, 2));
   console.log("STOP for explicit approval before a new transfer. If approved, pay via your wallet before checkout expiry. No send request is executed by this tool.");
   await app.close(); app = buildApp();

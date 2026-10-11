@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { createServer } from "node:http";
 import { encodeAbiParameters, encodeEventTopics, erc20Abi, TransactionReceiptNotFoundError, type Hash } from "viem";
-import { AUSD_BASE_SEPOLIA, type CheckoutPurchase } from "@impacks/contracts";
+import { AUSD_ETHEREUM_SEPOLIA, type CheckoutPurchase } from "@impacks/contracts";
 import { buildApp } from "../src/app.js";
 import { AusdPaymentVerifier, type VerificationClient } from "../src/providers/ausd/verify.js";
 import { createAusdClient, readAusdConfig } from "../src/providers/ausd/index.js";
@@ -24,13 +24,13 @@ const pathForTest = () => join(mkdtempSync(join(tmpdir(), "impacks-payment-")), 
 function fixture(t: test.TestContext, databasePath = ":memory:") {
   t.mock.method(Date, "now", () => now);
   const log = {
-    address: AUSD_BASE_SEPOLIA.tokenAddress as string,
+    address: AUSD_ETHEREUM_SEPOLIA.tokenAddress as string,
     topics: encodeEventTopics({ abi: erc20Abi, eventName: "Transfer", args: { from: buyer, to: recipient } }),
     data: encodeAbiParameters([{ type: "uint256" }], [1_000_000n]),
     removed: false, transactionHash: hash, blockHash, blockNumber: 100n, logIndex: 0,
   };
   const state = {
-    chainId: 84532, head: 111n, decimals: 6, unavailable: false, missing: false, calls: 0,
+    chainId: 11155111, head: 111n, decimals: 6, unavailable: false, missing: false, calls: 0,
     timestamp: BigInt(now / 1000 + 10), canonicalHash: blockHash, reorgDuringCheck: false,
     blockReads: 0, receipt: { status: "success", transactionHash: hash, blockNumber: 100n, blockHash, logs: [log] },
   };
@@ -269,9 +269,9 @@ test("real viem HTTP transport decodes a JSON-RPC receipt and verifies it", asyn
   const topics = encodeEventTopics({ abi: erc20Abi, eventName: "Transfer", args: { from: buyer, to: recipient } });
   const rpcReceipt = {
     transactionHash: hash, transactionIndex: "0x0", blockNumber: "0x64", blockHash,
-    from: buyer, to: AUSD_BASE_SEPOLIA.tokenAddress, status: "0x1", type: "0x2",
+    from: buyer, to: AUSD_ETHEREUM_SEPOLIA.tokenAddress, status: "0x1", type: "0x2",
     gasUsed: "0x100", cumulativeGasUsed: "0x100", effectiveGasPrice: "0x1", contractAddress: null,
-    logs: [{ address: AUSD_BASE_SEPOLIA.tokenAddress, topics,
+    logs: [{ address: AUSD_ETHEREUM_SEPOLIA.tokenAddress, topics,
       data: encodeAbiParameters([{ type: "uint256" }], [1_000_000n]), removed: false,
       transactionHash: hash, transactionIndex: "0x0", blockHash, blockNumber: "0x64", logIndex: "0x0" }],
   };
@@ -282,7 +282,7 @@ test("real viem HTTP transport decodes a JSON-RPC receipt and verifies it", asyn
     const rpc = JSON.parse(body);
     methods.push(rpc.method);
     const result: Record<string, unknown> = {
-      eth_chainId: "0x14a34", eth_getTransactionReceipt: rpcReceipt, eth_blockNumber: "0x6f",
+      eth_chainId: "0xaa36a7", eth_getTransactionReceipt: rpcReceipt, eth_blockNumber: "0x6f",
       eth_getBlockByNumber: { number: "0x64", hash: blockHash, timestamp: `0x${BigInt(now / 1000 + 10).toString(16)}`, transactions: [] },
       eth_call: encodeAbiParameters([{ type: "uint8" }], [6]),
     };
@@ -293,7 +293,7 @@ test("real viem HTTP transport decodes a JSON-RPC receipt and verifies it", asyn
   t.after(() => new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())));
   const address = server.address();
   assert.ok(address && typeof address !== "string");
-  const client = createAusdClient(readAusdConfig({ AUSD_RPC_URL: `http://127.0.0.1:${address.port}`, AUSD_CONTRACT_ADDRESS: AUSD_BASE_SEPOLIA.tokenAddress }));
+  const client = createAusdClient(readAusdConfig({ AUSD_RPC_URL: `http://127.0.0.1:${address.port}`, AUSD_CONTRACT_ADDRESS: AUSD_ETHEREUM_SEPOLIA.tokenAddress }));
   const evidence = await new AusdPaymentVerifier(client).verify(purchase, hash);
   assert.equal(evidence.transactionHash, hash);
   assert.equal(evidence.logIndex, 0);

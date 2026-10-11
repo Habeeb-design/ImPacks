@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { AUSD_BASE_SEPOLIA, type AusdRefund, type SandboxExecution } from "@impacks/contracts";
+import { AUSD_ETHEREUM_SEPOLIA, type AusdRefund, type SandboxExecution } from "@impacks/contracts";
 import { decodeFunctionData, encodeFunctionData, erc20Abi, getAddress, keccak256, parseTransaction, recoverTransactionAddress, type Hex } from "viem";
 import { CheckoutStore, type PaymentEvidence } from "../storage/checkout.js";
 import { ExecutionService } from "./execution.js";
@@ -52,11 +52,11 @@ export class RefundService {
   private snapshot(id: string) {
     const purchase = this.store.get(id);
     this.store.getOwned(id, purchase.buyerAddress);
-    if (purchase.status !== "confirmed" || purchase.chainId !== 84532 || purchase.decimals !== 6 ||
-      !same(purchase.tokenAddress, AUSD_BASE_SEPOLIA.tokenAddress)) blocked("Confirmed Base Sepolia AUSD deposit required.");
+    if (purchase.status !== "confirmed" || purchase.chainId !== 11155111 || purchase.decimals !== 6 ||
+      !same(purchase.tokenAddress, AUSD_ETHEREUM_SEPOLIA.tokenAddress)) blocked("Confirmed Ethereum Sepolia AUSD deposit required.");
     const execution = this.execution(id);
     if (execution.purchaseId !== id || !same(execution.identity.walletAddress, purchase.buyerAddress) ||
-      execution.identity.chainId !== 84532 || execution.mode !== "sandbox" || execution.accountingRule !== "demo-nominal-1:1" ||
+      execution.identity.chainId !== 11155111 || execution.mode !== "sandbox" || execution.accountingRule !== "demo-nominal-1:1" ||
       !Number.isSafeInteger(execution.budgetCents) || BigInt(execution.budgetCents) * 10000n !== BigInt(purchase.amountAtomic)) blocked("Execution and deposit do not agree.");
     const account = refundAccounting(purchase.amountAtomic, execution);
     if (!this.treasury || !same(this.treasury, purchase.recipientAddress)) account.blockers.push("TREASURY_NOT_CONFIGURED_OR_CHANGED");
@@ -76,7 +76,7 @@ export class RefundService {
       const value: AusdRefund = { refundId: previous?.refundId ?? randomUUID(), purchaseId: id,
         fulfillmentId: execution.fulfillmentId, state: "pending", depositAtomic: purchase.amountAtomic,
         ...account, authorizedAtomic: null, recipientAddress: purchase.buyerAddress,
-        treasuryAddress: purchase.recipientAddress, chainId: 84532, tokenAddress: AUSD_BASE_SEPOLIA.tokenAddress,
+        treasuryAddress: purchase.recipientAddress, chainId: 11155111, tokenAddress: AUSD_ETHEREUM_SEPOLIA.tokenAddress,
         executionDigest: digest, settlementReference: null, broadcastEnabled: false, transactionHash: null,
         createdAt: previous?.createdAt ?? now, updatedAt: now, confirmedAt: null };
       if (!existing) this.store.db.prepare("INSERT INTO ausd_refunds (id, purchase_id, fulfillment_id, state, refund_json) VALUES (?, ?, ?, 'pending', ?)")
@@ -104,7 +104,7 @@ export class RefundService {
     const value = this.get(id);
     if (value.state !== "authorized" || !value.authorizedAtomic) blocked("Refund must be authorized first.");
     if (!this.treasury || !same(this.treasury, value.treasuryAddress)) blocked("Treasury changed.");
-    return { chainId: 84532 as const, from: getAddress(value.treasuryAddress), to: AUSD_BASE_SEPOLIA.tokenAddress,
+    return { chainId: 11155111 as const, from: getAddress(value.treasuryAddress), to: AUSD_ETHEREUM_SEPOLIA.tokenAddress,
       value: "0", data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer",
         args: [getAddress(value.recipientAddress), BigInt(value.authorizedAtomic!)] }), broadcastEnabled: false as const };
   }
@@ -118,7 +118,7 @@ export class RefundService {
       const value = this.get(id), hash = keccak256(serialized);
       if (value.transactionHash === hash) return value;
       const intent = this.transferIntent(id);
-      if (tx.type !== "eip1559" || tx.chainId !== 84532 || !tx.to || !same(tx.to, intent.to) ||
+      if (tx.type !== "eip1559" || tx.chainId !== 11155111 || !tx.to || !same(tx.to, intent.to) ||
         !same(sender, intent.from) || (tx.value ?? 0n) !== 0n || tx.data !== intent.data ||
         !Number.isSafeInteger(tx.nonce) || tx.nonce! < 0 || !tx.gas || tx.gas <= 0n || tx.gas > 150000n ||
         tx.maxFeePerGas === undefined || tx.maxFeePerGas > 100000000000n ||

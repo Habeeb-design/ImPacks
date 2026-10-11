@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { getAddress, isAddress, verifyMessage, type Address, type Hex } from "viem";
 import { createSiweMessage } from "viem/siwe";
-import { AUSD_BASE_SEPOLIA, type WalletChallenge, type WalletIdentity, type WalletSession, type WalletSignatureRequest } from "@impacks/contracts";
+import { AUSD_ETHEREUM_SEPOLIA, type WalletChallenge, type WalletIdentity, type WalletSession, type WalletSignatureRequest } from "@impacks/contracts";
 import { CheckoutStore } from "../storage/checkout.js";
 import { HttpError } from "../errors.js";
 
@@ -38,19 +38,19 @@ export class WalletAuthService {
     const nonce = randomBytes(32).toString("hex"), challengeId = randomUUID();
     const domain = new URL(expected).host;
     const message = createSiweMessage({ domain, address: wallet, uri: expected,
-      scheme: new URL(expected).protocol.slice(0, -1), version: "1", chainId: AUSD_BASE_SEPOLIA.chainId,
+      scheme: new URL(expected).protocol.slice(0, -1), version: "1", chainId: AUSD_ETHEREUM_SEPOLIA.chainId,
       nonce, issuedAt, expirationTime: expiresAt,
       statement: "Sign in to ImPacks. This signature does not authorize a payment.", requestId: challengeId });
-    this.store.db.prepare(`INSERT INTO wallet_challenges (id, nonce, wallet, origin, message, issued_at, expires_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(challengeId, nonce, wallet, expected, message, issuedAt.getTime(), expiresAt.getTime());
+    this.store.db.prepare(`INSERT INTO wallet_challenges (id, nonce, wallet, origin, message, issued_at, expires_at, chain_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(challengeId, nonce, wallet, expected, message, issuedAt.getTime(), expiresAt.getTime(), AUSD_ETHEREUM_SEPOLIA.chainId);
     return { challengeId, nonce, walletAddress: wallet, domain, origin: expected, message,
-      chainId: AUSD_BASE_SEPOLIA.chainId, issuedAt: issuedAt.toISOString(), expiresAt: expiresAt.toISOString() };
+      chainId: AUSD_ETHEREUM_SEPOLIA.chainId, issuedAt: issuedAt.toISOString(), expiresAt: expiresAt.toISOString() };
   }
 
   async verify(input: WalletSignatureRequest, origin: string | undefined): Promise<WalletSession> {
     const expected = this.checkOrigin(origin);
     const row = this.store.db.prepare("SELECT * FROM wallet_challenges WHERE id = ?").get(input.challengeId);
-    if (!row || row.consumed_at !== null || Number(row.expires_at) <= Date.now() || row.origin !== expected) unauthorized();
+    if (!row || row.chain_id !== AUSD_ETHEREUM_SEPOLIA.chainId || row.consumed_at !== null || Number(row.expires_at) <= Date.now() || row.origin !== expected) unauthorized();
     let valid = false;
     try {
       // EOA EIP-191 verification of the stored message. Never accept a client message or nonce.
@@ -63,10 +63,10 @@ export class WalletAuthService {
         WHERE id = ? AND consumed_at IS NULL AND expires_at > ? AND origin = ?`)
         .run(Date.now(), input.challengeId, Date.now(), expected);
       if (used.changes !== 1) unauthorized();
-      this.store.db.prepare("INSERT INTO wallet_sessions (token_hash, wallet, origin, expires_at) VALUES (?, ?, ?, ?)")
-        .run(digest(token), row.wallet as string, expected, expiresAt);
+      this.store.db.prepare("INSERT INTO wallet_sessions (token_hash, wallet, origin, expires_at, chain_id) VALUES (?, ?, ?, ?, ?)")
+        .run(digest(token), row.wallet as string, expected, expiresAt, AUSD_ETHEREUM_SEPOLIA.chainId);
     });
-    return { token, walletAddress: row.wallet as string, chainId: AUSD_BASE_SEPOLIA.chainId, expiresAt: new Date(expiresAt).toISOString() };
+    return { token, walletAddress: row.wallet as string, chainId: AUSD_ETHEREUM_SEPOLIA.chainId, expiresAt: new Date(expiresAt).toISOString() };
   }
 
   authenticate(authorization: string | undefined, origin: string | undefined, requireOrigin = false): WalletIdentity {
@@ -74,8 +74,8 @@ export class WalletAuthService {
     const token = authorization?.match(/^Bearer ([0-9a-f]{64})$/)?.[1];
     if (!token) unauthorized();
     const row = this.store.db.prepare("SELECT * FROM wallet_sessions WHERE token_hash = ?").get(digest(token));
-    if (!row || row.revoked_at !== null || Number(row.expires_at) <= Date.now() || row.origin !== expected) unauthorized();
-    return { walletAddress: row.wallet as string, chainId: AUSD_BASE_SEPOLIA.chainId, expiresAt: new Date(Number(row.expires_at)).toISOString() };
+    if (!row || row.chain_id !== AUSD_ETHEREUM_SEPOLIA.chainId || row.revoked_at !== null || Number(row.expires_at) <= Date.now() || row.origin !== expected) unauthorized();
+    return { walletAddress: row.wallet as string, chainId: AUSD_ETHEREUM_SEPOLIA.chainId, expiresAt: new Date(Number(row.expires_at)).toISOString() };
   }
 
   logout(authorization: string | undefined, origin: string | undefined) {

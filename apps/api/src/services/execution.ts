@@ -15,7 +15,7 @@ export class ExecutionService {
   private authorize(purchaseId: string, input: FulfillmentAttemptRequest) {
     const job = new FulfillmentService(this.store).get(purchaseId);
     const purchase = this.store.getOwned(purchaseId, job.buyerAddress);
-    if (purchase.status !== "confirmed" || purchase.chainId !== 84532 || purchase.mode !== "ausd-testnet") conflict("Confirmed testnet purchase required.");
+    if (purchase.status !== "confirmed" || purchase.chainId !== 11155111 || purchase.mode !== "ausd-testnet") conflict("Confirmed testnet purchase required.");
     if (job.status !== "processing" || job.requestId !== input.requestId || job.attempt !== input.attempt || Date.parse(job.leaseExpiresAt) <= Date.now()) conflict("An active fulfillment lease is required.");
     return { job, purchase };
   }
@@ -33,14 +33,14 @@ export class ExecutionService {
     return this.store.transaction(() => {
       const { job, purchase } = this.authorize(purchaseId, input);
       if (this.store.db.prepare("SELECT 1 FROM sandbox_executions WHERE purchase_id = ?").get(purchaseId)) return this.get(purchaseId);
-      const budgetCents = budgets[purchase.packType];
+      const budgetCents = purchase.pack?.budgetCents ?? budgets[purchase.packType as keyof typeof budgets];
       if (BigInt(purchase.amountAtomic) !== BigInt(budgetCents) * 10000n || purchase.decimals !== 6) conflict("Purchase price does not match the server-controlled tier.");
-      const pack: Pack = { id: purchase.packType, name: `${purchase.packType} testnet pack`, theme: "mixed",
+      const pack: Pack = purchase.pack ?? { id: purchase.packType, name: `${purchase.packType} testnet pack`, theme: "mixed",
         description: "Sandbox demonstration; separately funded USD, no conversion.", cardCount: 3,
         priceAtomic: purchase.amountAtomic, budgetCents };
       const timestamp = new Date().toISOString();
       const value: SandboxExecution = { fulfillmentId: job.fulfillmentId, purchaseId,
-        identity: { walletAddress: purchase.buyerAddress, chainId: 84532 }, pack, budgetCents,
+        identity: { walletAddress: purchase.buyerAddress, chainId: 11155111 }, pack, budgetCents,
         reservedCents: budgetCents, mode: "sandbox", submissionEnabled: false, accountingRule: "demo-nominal-1:1",
         state: "pending", orders: [], createdAt: timestamp, updatedAt: timestamp };
       this.store.db.prepare("INSERT INTO sandbox_executions VALUES (?, ?, ?)").run(job.fulfillmentId, purchaseId, JSON.stringify(value));

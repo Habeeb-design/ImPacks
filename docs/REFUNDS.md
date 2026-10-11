@@ -26,7 +26,7 @@ The attestation is persisted when authorized, and execution reporting is then se
 Schema 4 adds one refund per purchase/fulfillment, unique transaction hashes and
 unique treasury/nonces. States: pending, authorized, submitting, submitted, confirmed,
 reconciliation-required, failed. A future offline signer may stage only an exact
-Base Sepolia EIP-1559 AUSD transfer back to the original buyer. The signed payload,
+Ethereum Sepolia EIP-1559 AUSD transfer back to the original buyer. The signed payload,
 hash and nonce commit before any network submission. Staging is server-only and is
 not reachable over HTTP. Gas is capped at 150000 and max fee at 100 gwei as additional
 preparation guards, not a live fee recommendation. Signed payloads are never returned

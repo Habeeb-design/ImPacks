@@ -12,7 +12,7 @@ export async function createFoilRenderer(body: HTMLElement, foil: HTMLCanvasElem
  await wrapper.decode();
  tx.drawImage(wrapper,-53.76,-37.18,491.52,750.36);
  const textureReady=true;
- let time=0, foilSheen: CanvasGradient | null=null;
+ let time=0, liningOpacity=1, foilSheen: CanvasGradient | null=null;
  const edge=(x: number)=>29+Math.sin(x*.045)*.9+Math.sin(x*.018+.4)*.45;
  function texturedTriangle(a: Vertex,b: Vertex,c: Vertex,shade: number,back: boolean){
   ctx.save();ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.closePath();ctx.clip();
@@ -30,7 +30,7 @@ export async function createFoilRenderer(body: HTMLElement, foil: HTMLCanvasElem
   if(front<3)return;
   ctx.save();
   const settle=0,depth=(4+progress*3)*smooth(Math.min(1,front/32));
-  ctx.globalAlpha=1-smooth(phase(time,4820,5500));
+  ctx.globalAlpha=liningOpacity;
   ctx.translate(-14*settle+96,420*settle+169);ctx.rotate(-6*settle*Math.PI/180);ctx.translate(-96,-169);
   const left=2,right=front-1,top=29-depth;
   // Recessed rear foil wall. The offset far rim and folded side gussets give the pouch thickness.
@@ -94,5 +94,5 @@ export async function createFoilRenderer(body: HTMLElement, foil: HTMLCanvasElem
   ctx.globalAlpha=1;
  }
 
- return (at: number, progress: number, release: number) => { time=at; drawFoil(progress,release); };
+ return (at: number, progress: number, release: number, opacity=1) => { time=at; liningOpacity=opacity; drawFoil(progress,release); };
 }

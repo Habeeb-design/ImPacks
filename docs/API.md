@@ -1,6 +1,6 @@
 # ImPacks API contract
 
-Canonical types and body schemas live in `packages/contracts/src/index.ts`. Routes below are implemented by the local demo API. Checkout payments use SQLite and server-side verification. Wallet ownership and fulfillment authorization are implemented; demo identity/storage and provider reconciliation remain separate tasks.
+Canonical types and body schemas live in `packages/contracts/src/index.ts`. The standalone API serves the explicitly simulated pack flow and durable testnet checkout separately. Privy sessions own simulated cards; wallet-signature sessions own SQLite checkout records. External execution and refund settlement remain disabled.
 
 ## Transport
 
@@ -20,10 +20,10 @@ Canonical types and body schemas live in `packages/contracts/src/index.ts`. Rout
 | GET | `/api/me` | None | `{user, mode}` | Yes |
 | POST | `/api/auth/logout` | `{}` | 204; session revoked | Yes |
 | GET | `/api/packs` | None | `{packs: Pack[]}` | No |
+| POST | `/api/quotes` | `{packId, budgetCents?}` | `Quote` valid for 5 minutes | Yes |
 | POST | `/api/checkout` | `{packType, buyerAddress?}` | 201 `CheckoutPurchase` | Wallet session |
 | GET | `/api/checkout/:purchaseId` | UUID purchase ID | `CheckoutPurchase` | Wallet session |
 | POST | `/api/checkout/:purchaseId/verify` | `{transactionHash}` | Confirmed `CheckoutPurchase` or retryable/error response | Wallet session |
-| POST | `/api/quotes` | `{packId, budgetCents?}` | `Quote` valid for 5 minutes | Yes |
 | POST | `/api/openings` | `OpenRequest` + `Idempotency-Key` | `Opening` | Yes |
 | GET | `/api/openings/:id` | Path ID | Owned `Opening` | Yes |
 | GET | `/api/portfolio` | None | `{openings: Opening[]}` | Yes |
@@ -38,7 +38,7 @@ Messages never derive the domain from Host or forwarded headers.
 1. POST `/api/auth/wallet/challenge` with `{walletAddress}` from that origin.
 2. Sign the **exact returned `message`** with the wallet's `signMessage` / `personal_sign`
    operation (EIP-191). It uses the SIWE format with domain, URI/origin, wallet, chain
-   84532, a server-generated 256-bit nonce, issued time, five-minute expiry and request ID.
+   11155111, a server-generated 256-bit nonce, issued time, five-minute expiry and request ID.
 3. POST `/api/auth/wallet/verify` with `{challengeId, signature}`. The server loads its
    stored message and verifies the EOA signature using viem. It does not accept a
    client-supplied message, nonce, wallet override, chain or domain.
@@ -85,7 +85,7 @@ Example request:
 `CheckoutPurchase` returns `purchaseId` (server UUID), `packType`, `buyerAddress`,
 `asset: "AUSD"`, `amount` (decimal string), `amountAtomic` (integer string),
 `decimals: 6`, `tokenAddress: "0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC"`,
-`chainId: 84532`, configured `recipientAddress`, UTC ISO `createdAt`/`expiresAt`,
+`chainId: 11155111`, configured `recipientAddress`, UTC ISO `createdAt`/`expiresAt`,
 and `status: "pending"`. It also explicitly returns `mode: "ausd-testnet"`,
 `storage: "sqlite"`, and `paymentEnabled: false`. Added fields are `updatedAt`,
 `expiredAt`, `confirmedAt`, `transactionHash`, `paymentBlockNumber`,
@@ -107,7 +107,7 @@ malformed/zero optional wallet addresses, invalid mixed-case checksums, extra fi
 prices, status or confirmation), and malformed path UUIDs return 400 `INVALID_REQUEST`.
 Unknown purchase IDs return 404 `PURCHASE_NOT_FOUND`. A missing/invalid receiving
 address returns 503 `CHECKOUT_NOT_CONFIGURED` on creation; other demo routes still work.
-The token and chain are fixed to the shared Base Sepolia constants. Checkout creation
+The token and chain are fixed to the shared Ethereum Sepolia constants. Checkout creation
 needs no RPC call; connectivity verification remains a separate diagnostic.
 
 ### Verification and durable replay protection
@@ -121,7 +121,7 @@ Content-Type: application/json
 
 This strict body accepts no amount, status, wallet, or confirmation fields. The server
 uses the purchase's immutable buyer, recipient, token, chain and amount. viem checks
-RPC chain 84532, a successful matching receipt, six token decimals at the mined block,
+RPC chain 11155111, a successful matching receipt, six token decimals at the mined block,
 and exactly one strictly decoded AUSD `Transfer` from that buyer to that recipient
 with the exact atomic amount. Multiple matching transfers in one transaction are
 rejected. The event's emitting contract and receipt/log block and transaction hashes
@@ -148,7 +148,7 @@ purchase. A hash consumed by another purchase returns 409. No pack is issued.
 | 422 `INVALID_PAYMENT` | Reverted receipt, mismatched/malformed transfer, or outside payment window |
 | 425 `PAYMENT_PENDING` | Receipt missing, insufficient depth, or changing/noncanonical chain; retry same hash |
 | 503 `PAYMENT_NOT_CONFIGURED` | Missing/invalid server RPC, token, recipient or depth configuration |
-| 503 `WRONG_PAYMENT_NETWORK` | RPC is not Base Sepolia |
+| 503 `WRONG_PAYMENT_NETWORK` | RPC is not Ethereum Sepolia |
 | 503 `PAYMENT_RPC_UNAVAILABLE` | Temporary RPC/read failure; retry same hash |
 
 Invalid or pending submissions do not reserve hashes or permanently fail a purchase.
@@ -234,20 +234,6 @@ Payment: `confirmed`, `failed`, `unknown`. Orders: `filled`, `pending`, `failed`
 
 `/api/portfolio` is opening history, including failures; derive holdings only from confirmed fills. Quote budget is an upper limit. Track actual spend, fees and any remainder separately. All current order IDs and payment references begin with `demo-`.
 
-## Internal sandbox execution (Stage 1)
-
-Authenticated backend-only GET `/api/internal/checkout/:purchaseId/execution` and
-POST suffixes `/reserve`, `/prepare`, `/report` use the existing internal fulfillment
-credential and lease fencing. See [EXECUTION.md](EXECUTION.md) for strict request
-contracts, states, budgets and reconciliation. No frontend methods or credentials
-are added; checkout/wallet contracts are unchanged.
-
-## Internal refund preparation
-
-GET `/api/internal/checkout/:purchaseId/refund` and POST suffixes `/prepare`,
-`/authorize`, `/reconcile` use the existing internal backend credential. POST bodies
-are strictly empty objects. Authorization is blocked pending an authoritative final
-settlement adapter; broadcasting is disabled. See [REFUNDS.md](REFUNDS.md).
 ### Public wallet balance
 
 `GET /api/wallets/:address/ausd` reads a valid EVM address on Ethereum Sepolia. Returns WalletBalance (`address`, `chainId:11155111`, `asset:"AUSD"`, `tokenAddress`, decimal-string `balanceAtomic`, exact `formatted` string, `network:"Ethereum Sepolia"`). Invalid addresses return 400; RPC/chain/token validation failures return 503. This read does not prove account ownership or authorize payments.
@@ -264,6 +250,36 @@ settlement adapter; broadcasting is disabled. See [REFUNDS.md](REFUNDS.md).
 - Openings now include optional `theme`; filled positive-quantity cards receive `position: { status: "open" }`. Order receipts retain the original entry quantity and spend.
 - `POST /api/openings/:id/cards/:cardId/close` requires the current API bearer session, an `Idempotency-Key`, and `{ "confirmSimulation": true }`. Only the opening's owner can close a confirmed filled position. This paper-only action closes its entire quantity at the current fixture side price and returns the updated Opening. `position` gains `status: "closed"`, `closedAt`, `exitPriceCents`, and `proceedsCents`; the card remains in the portfolio. No wallet or Gemini order call occurs and proceeds are not redeemable funds.
 - Concurrent/replayed close requests cannot close twice. Keys are bound to owner/opening/card; reuse for another position returns `409 KEY_REUSED`. Missing/unavailable prices leave the position open and permit a same-key retry. Nonfilled orders and sandbox openings fail closed. In-memory storage and these retry guards are not durable trading infrastructure.
+
+## Internal sandbox execution (Stage 1)
+
+Authenticated backend-only GET `/api/internal/checkout/:purchaseId/execution` and
+POST suffixes `/reserve`, `/prepare`, `/report` use the existing internal fulfillment
+credential and lease fencing. See [EXECUTION.md](EXECUTION.md) for strict request
+contracts, states, budgets and reconciliation. No frontend methods or credentials
+are added; checkout/wallet contracts are unchanged.
+
+## Internal refund preparation
+
+GET `/api/internal/checkout/:purchaseId/refund` and POST suffixes `/prepare`,
+`/authorize`, `/reconcile` use the existing internal backend credential. POST bodies
+are strictly empty objects. Authorization is blocked pending an authoritative final
+settlement adapter; broadcasting is disabled. See [REFUNDS.md](REFUNDS.md).
+
+
+## Integrated category checkout and UI status
+
+All checkout routes require the wallet bearer session, independently of the Privy app session. Browser writes require the exact configured Origin. The same Privy embedded wallet signs the existing challenge; no wallet session token is stored in browser storage.
+
+- `GET /api/checkout-capabilities`: public CheckoutCapabilities with network, configuration availability, disabled payment/order/refund flags and a user-facing reason. Embedded mode reports unavailable.
+- `POST /api/checkout`: also accepts `{packType: "category", packId: "crypto" | "sports" | "mixed", budgetCents, disclosureVersion: "random-v1"}` with a required `Idempotency-Key`. Budget follows the existing $20–$250/$5-step rules. The returned purchase contains the immutable Pack snapshot. Same wallet/key/payload returns the same purchase across restart; changed edition/budget returns 409. Legacy tiers remain compatible.
+- `GET /api/checkout`: latest 100 owned purchases as `{purchases: CheckoutStatus[]}` for Dashboard; no other wallet's purchases are returned.
+- `GET /api/checkout/:purchaseId/status`: owned purchase, execution counts/state, sanitized refund status, and a nullable Opening projection. Preparation alone returns no Opening. Trusted reports supply exact persisted card identities and statuses; this is not a new selection or exchange call.
+- `POST /api/checkout/:purchaseId/prepare`, `{}`: only a verified paid owner can ask the backend to reserve and prepare its selection. No order is submitted. The backend manages its fulfillment lease internally; repeated/concurrent requests reuse the committed selection. Market failures return errors, never fixtures.
+
+The existing verification endpoint accepts the same transaction hash for retries. The frontend saves owner-scoped checkout metadata and receipt hashes before requests and restores them after hydration; tokens stay in memory. Pending/unknown orders never count as holdings. Refund status exposes only state, candidate/authorized amount, public hash and disabled-broadcast flag. Internal endpoints remain server-only and reject browser Origin headers.
+
+Schema 5 adds durable checkout keys and chain-bound wallet challenges/sessions. Legacy Base purchases are preserved but blocked from current execution; old unbound sessions require fresh wallet authentication. Embedded demo mode rejects checkout, wallet-auth and internal payment operations and never presents ephemeral storage as durable.
 
 ## User-to-user paper resale
 

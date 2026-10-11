@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { encodeAbiParameters, encodeEventTopics, erc20Abi, type Hash, type Hex } from "viem";
-import { AUSD_BASE_SEPOLIA, type AusdRefund, type SandboxExecution } from "@impacks/contracts";
+import { AUSD_ETHEREUM_SEPOLIA, type AusdRefund, type SandboxExecution } from "@impacks/contracts";
 import { CheckoutStore } from "../src/storage/checkout.js";
 import { CheckoutService } from "../src/services/checkout.js";
 import { FulfillmentService } from "../src/services/fulfillment.js";
@@ -108,7 +108,7 @@ test("finalized partial fills refund only the reconciled unused amount and freez
   const pending = f.refunds.prepare(id), authorized = f.refunds.authorize(id);
   assert.equal(authorized.refundId, pending.refundId); assert.equal(authorized.state, "authorized");
   assert.equal(authorized.authorizedAtomic, "2190000"); assert.equal(authorized.broadcastEnabled, false);
-  assert.equal(f.refunds.transferIntent(id).to, AUSD_BASE_SEPOLIA.tokenAddress);
+  assert.equal(f.refunds.transferIntent(id).to, AUSD_ETHEREUM_SEPOLIA.tokenAddress);
   assert.throws(() => f.execution.report(id, { ...lease, clientOrderId: prepared.orders[0].clientOrderId, revision: 2,
     state: "filled", exchangeOrderId: "changed", filledQuantity: 4, costCents: 80, feeCents: 2 }), /sealed/);
   assert.throws(() => f.refunds.broadcast(), /disabled/);
@@ -138,7 +138,7 @@ test("signed identity is durable before network I/O and rejects recipient/chain/
   assert.deepEqual(await f.refunds.stageSigned(id, signed), staged);
   const row = f.store.db.prepare("SELECT transaction_hash, nonce, signed_transaction FROM ausd_refunds WHERE purchase_id=?").get(id)!;
   assert.equal(row.transaction_hash, staged.transactionHash); assert.equal(row.nonce, 1); assert.equal(row.signed_transaction, signed);
-  await assert.rejects(f.refunds.stageSigned(id, await treasury.signTransaction({ chainId: 84532, to: AUSD_BASE_SEPOLIA.tokenAddress,
+  await assert.rejects(f.refunds.stageSigned(id, await treasury.signTransaction({ chainId: 11155111, to: AUSD_ETHEREUM_SEPOLIA.tokenAddress,
     data: "0x", nonce: 2, gas: 100000n, maxFeePerGas: 100n, maxPriorityFeePerGas: 1n, type: "eip1559" })), /authorized first/);
 });
 
@@ -204,12 +204,12 @@ test("readiness fails closed without credentials and does not print secrets", as
 for (const scenario of ["success", "wrong amount", "wrong sender", "wrong recipient", "wrong token", "pending", "reverted", "reorg", "timeout"] as const) {
   test(`refund receipt verification: ${scenario}`, async () => {
     const hash = `0x${"ab".repeat(32)}` as Hash, blockHash = `0x${"cd".repeat(32)}` as Hash;
-    const log = { address: scenario === "wrong token" ? buyer : AUSD_BASE_SEPOLIA.tokenAddress, removed: false,
+    const log = { address: scenario === "wrong token" ? buyer : AUSD_ETHEREUM_SEPOLIA.tokenAddress, removed: false,
       transactionHash: hash, blockHash, blockNumber: 100n, logIndex: 0,
       topics: encodeEventTopics({ abi: erc20Abi, eventName: "Transfer", args: {
         from: scenario === "wrong sender" ? buyer : treasury.address, to: scenario === "wrong recipient" ? treasury.address : buyer } }),
       data: encodeAbiParameters([{ type: "uint256" }], [scenario === "wrong amount" ? 1n : 570000n]) };
-    const client = { getChainId: async () => 84532,
+    const client = { getChainId: async () => 11155111,
       getTransactionReceipt: async () => { if (scenario === "timeout") throw new Error("private RPC"); return { transactionHash: hash, blockNumber: 100n, blockHash, status: scenario === "reverted" ? "reverted" : "success", logs: [log] }; },
       getBlockNumber: async () => scenario === "pending" ? 110n : 111n,
       getBlock: async () => ({ hash: scenario === "reorg" ? hash : blockHash, timestamp: 1800000001n }), readContract: async () => 6 } as unknown as VerificationClient;

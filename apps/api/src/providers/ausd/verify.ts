@@ -1,4 +1,4 @@
-import { AUSD_BASE_SEPOLIA, type CheckoutPurchase } from "@impacks/contracts";
+import { AUSD_ETHEREUM_SEPOLIA, type CheckoutPurchase } from "@impacks/contracts";
 import { decodeEventLog, erc20Abi, TransactionReceiptNotFoundError, type Hash } from "viem";
 import { z } from "zod";
 import { HttpError } from "../../errors.js";
@@ -18,10 +18,10 @@ export class AusdPaymentVerifier implements PaymentVerifier {
 
   async verify(purchase: CheckoutPurchase, hash: Hash): Promise<PaymentEvidence> {
     try {
-      if (await this.client.getChainId() !== AUSD_BASE_SEPOLIA.chainId || purchase.chainId !== AUSD_BASE_SEPOLIA.chainId) {
-        throw new HttpError(503, "WRONG_PAYMENT_NETWORK", "Payment RPC must use Base Sepolia.");
+      if (await this.client.getChainId() !== AUSD_ETHEREUM_SEPOLIA.chainId || purchase.chainId !== AUSD_ETHEREUM_SEPOLIA.chainId) {
+        throw new HttpError(503, "WRONG_PAYMENT_NETWORK", "Payment RPC must use Ethereum Sepolia.");
       }
-      if (!same(purchase.tokenAddress, AUSD_BASE_SEPOLIA.tokenAddress) || purchase.decimals !== 6) invalid("Unsupported payment asset.");
+      if (!same(purchase.tokenAddress, AUSD_ETHEREUM_SEPOLIA.tokenAddress) || purchase.decimals !== 6) invalid("Unsupported payment asset.");
       const receipt = await this.client.getTransactionReceipt({ hash });
       if (!same(receipt.transactionHash, hash)) invalid("Receipt transaction does not match.");
       if (receipt.status !== "success") invalid("Transaction reverted.");
@@ -37,7 +37,7 @@ export class AusdPaymentVerifier implements PaymentVerifier {
       if (minedAt < BigInt(Date.parse(purchase.createdAt)) || minedAt >= BigInt(Date.parse(purchase.expiresAt))) {
         invalid("Transfer must be mined within the checkout creation and expiration window.");
       }
-      const decimals = await this.client.readContract({ address: AUSD_BASE_SEPOLIA.tokenAddress,
+      const decimals = await this.client.readContract({ address: AUSD_ETHEREUM_SEPOLIA.tokenAddress,
         abi: erc20Abi, functionName: "decimals", blockNumber: receipt.blockNumber });
       if (decimals !== 6) invalid("Unexpected AUSD token decimals.");
       const matching = receipt.logs.filter(log => {
@@ -82,7 +82,7 @@ export function configuredPaymentVerifier(): PaymentVerifier {
       const confirmations = confirmationSchema.parse(process.env.AUSD_MIN_CONFIRMATIONS ?? "12");
       verifier = new AusdPaymentVerifier(createAusdClient(config), confirmations);
     } catch {
-      throw new HttpError(503, "PAYMENT_NOT_CONFIGURED", "Configure Base Sepolia RPC, AUSD token, recipient and at least 12 confirmations.");
+      throw new HttpError(503, "PAYMENT_NOT_CONFIGURED", "Configure Ethereum Sepolia RPC, AUSD token, recipient and at least 12 confirmations.");
     }
     return verifier.verify(purchase, hash);
   } };

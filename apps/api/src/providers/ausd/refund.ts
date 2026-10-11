@@ -1,4 +1,4 @@
-import { AUSD_BASE_SEPOLIA, type AusdRefund, type CheckoutPurchase } from "@impacks/contracts";
+import { AUSD_ETHEREUM_SEPOLIA, type AusdRefund, type CheckoutPurchase } from "@impacks/contracts";
 import type { Hash } from "viem";
 import { HttpError } from "../../errors.js";
 import { AusdPaymentVerifier, type VerificationClient } from "./verify.js";
@@ -13,7 +13,7 @@ export class AusdRefundVerifier implements RefundVerifier {
   async verify(refund: AusdRefund) {
     if (!refund.transactionHash || !refund.authorizedAtomic) throw new HttpError(409, "REFUND_NOT_STAGED", "Refund transaction not staged.");
     try {
-      if (await this.client.getChainId() !== 84532) throw new Error("Wrong network");
+      if (await this.client.getChainId() !== 11155111) throw new Error("Wrong network");
       const receipt = await this.client.getTransactionReceipt({ hash: refund.transactionHash as Hash });
       if (receipt.transactionHash.toLowerCase() !== refund.transactionHash.toLowerCase()) throw new Error("Wrong receipt");
       const head = await this.client.getBlockNumber({ cacheTime: 0 });
@@ -30,7 +30,7 @@ export class AusdRefundVerifier implements RefundVerifier {
       // Reuse all strict chain/token/Transfer/amount/decimals/canonical-inclusion checks, reversing payer/recipient.
       const instruction = { purchaseId: refund.purchaseId, buyerAddress: refund.treasuryAddress,
         recipientAddress: refund.recipientAddress, amountAtomic: refund.authorizedAtomic,
-        tokenAddress: AUSD_BASE_SEPOLIA.tokenAddress, chainId: 84532, decimals: 6,
+        tokenAddress: AUSD_ETHEREUM_SEPOLIA.tokenAddress, chainId: 11155111, decimals: 6,
         createdAt: refund.createdAt, expiresAt: "9999-12-31T23:59:59.999Z" } as CheckoutPurchase;
       return await new AusdPaymentVerifier(this.client, this.confirmations).verify(instruction, refund.transactionHash as Hash);
     } catch (error) {
@@ -47,7 +47,7 @@ export function configuredRefundVerifier(): RefundVerifier {
       return await new AusdRefundVerifier(createAusdClient(config), Number(process.env.AUSD_MIN_CONFIRMATIONS ?? 12)).verify(refund);
     } catch (error) {
       if (error instanceof HttpError) throw error;
-      throw new HttpError(503, "REFUND_NOT_CONFIGURED", "Configure Base Sepolia read-only refund reconciliation.");
+      throw new HttpError(503, "REFUND_NOT_CONFIGURED", "Configure Ethereum Sepolia read-only refund reconciliation.");
     }
   } };
 }

@@ -2,17 +2,17 @@
 
 ## Current boundary
 
-<<<<<<< HEAD
-The API runs demo pack-payment and order providers. Privy access-token verification, embedded-wallet configuration and a read-only Ethereum Sepolia AUSD balance endpoint now exist; the full authenticated payer/payment flow still needs end-to-end verification. There is no pack-payment settlement, authenticated Gemini execution, durable purchase ledger or refund execution. Provider interfaces in `apps/api/src/providers/ports.ts` give the backend team a starting point. The frontend calls ImPacks endpoints for trading and payment verification.
+The integrated UI retains explicitly simulated pack opening/closing and adds a separate durable testnet checkout path. Privy identity and its embedded wallet remain the account experience; checkout verifies an EIP-191 wallet signature before creating or reading wallet-owned purchases. Category/stake/consent and checkout retry identity are persisted in SQLite. Ethereum Sepolia (11155111) is the only current network; older Base Sepolia evidence in the team log is historical.
 
-The optional [welcome-grant extension](WELCOME_GRANTS.md) adds PostgreSQL persistence and a separate worker specifically for one-time 50-test-AUSD transfers to new Privy users. It is disabled until configured and has not been verified with a live transfer. Grant persistence does not make the existing pack state durable or fund Gemini sandbox balances.
+The category and Dashboard screens connect to receipt verification, immutable selection preparation and sanitized execution/refund status. Gemini public discovery covers nine genres; the opening catalog still offers three editions, with other genres visible as previews. Payment collection, Gemini submission and refund broadcasting remain disabled. Server-owned reports are required before cards are projected as sandbox results. No private internal lease, credential or signed transaction is exposed to the browser.
+
+Welcome grants independently use PostgreSQL and a worker and remain opt-in. They do not fund Gemini or make simulated packs durable. See [integration test handoff](INTEGRATION_TEST.md) and [welcome grants](WELCOME_GRANTS.md).
 
 ## Detailed implementation plan
 
 Read [sandbox treasury and execution architecture](PAYMENTS_ARCHITECTURE.md) before wiring external side effects, and [AUSD execution escrow specification](ESCROW_SPEC.md) for the optional contract. These researched designs recommend a durable treasury/ledger sandbox first, with escrow added to the same execution backend later. They specify wallet binding, exact-money accounting, order recovery, unspent-budget withdrawals, role boundaries, and acceptance evidence. They are proposals, not implemented integrations.
-=======
+
 The opening flow still runs demo providers. Independent AUSD checkout routes now persist purchases in SQLite and verify Base Sepolia transfers with durable replay protection. EIP-191 wallet login and durable internal fulfillment authorization are available. There is no transaction submission, Gemini connectivity, refund system or automatic reconciliation. The issuer handoff is documented in [the internal fulfillment contract](FULFILLMENT.md). Payment collection remains disabled. See [checkout setup](../apps/api/README.md#persistent-checkout-and-verification). Provider interfaces in `apps/api/src/providers/ports.ts` give the backend team an agreed starting point. The frontend calls only ImPacks endpoints.
->>>>>>> origin/main
 
 ## AUSD payments
 

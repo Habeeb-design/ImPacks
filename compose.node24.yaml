@@ -1,0 +1,55 @@
+name: impacks-node24
+services:
+  dev:
+    image: node:24-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
+    working_dir: /workspace
+    init: true
+    command: ["sleep", "infinity"]
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3001"
+      NEXT_TELEMETRY_DISABLED: "1"
+      AUSD_DATABASE_PATH: /var/lib/impacks/checkout.sqlite
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - checkout_data:/var/lib/impacks
+      - .:/workspace
+      # Never copy or use native macOS dependencies in Linux.
+      - type: volume
+        source: root_modules
+        target: /workspace/node_modules
+        volume: { nocopy: true }
+      - type: volume
+        source: api_modules
+        target: /workspace/apps/api/node_modules
+        volume: { nocopy: true }
+      - type: volume
+        source: web_modules
+        target: /workspace/apps/web/node_modules
+        volume: { nocopy: true }
+      - type: volume
+        source: contracts_modules
+        target: /workspace/packages/contracts/node_modules
+        volume: { nocopy: true }
+      - type: volume
+        source: web_build
+        target: /workspace/apps/web/.next
+        volume: { nocopy: true }
+      - type: volume
+        source: api_build
+        target: /workspace/apps/api/dist
+        volume: { nocopy: true }
+      - type: volume
+        source: contracts_build
+        target: /workspace/packages/contracts/dist
+        volume: { nocopy: true }
+volumes:
+  root_modules:
+  api_modules:
+  web_modules:
+  contracts_modules:
+  web_build:
+  api_build:
+  contracts_build:
+  checkout_data:

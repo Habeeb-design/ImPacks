@@ -2,7 +2,7 @@
 
 ## Current boundary
 
-The API runs only demo providers. It has no production login, wallet signing, AUSD settlement, Gemini connectivity, durable database, refunds or automatic reconciliation. Provider interfaces in `apps/api/src/providers/ports.ts` give the backend team an agreed starting point. The frontend calls only ImPacks endpoints.
+The opening flow still runs demo providers. Independent AUSD checkout routes now persist purchases in SQLite and verify Base Sepolia transfers with durable replay protection. EIP-191 wallet login and durable internal fulfillment authorization are available. There is no transaction submission, Gemini connectivity, refund system or automatic reconciliation. The issuer handoff is documented in [the internal fulfillment contract](FULFILLMENT.md). Payment collection remains disabled. See [checkout setup](../apps/api/README.md#persistent-checkout-and-verification). Provider interfaces in `apps/api/src/providers/ports.ts` give the backend team an agreed starting point. The frontend calls only ImPacks endpoints.
 
 ## AUSD payments
 
@@ -42,3 +42,11 @@ Before external execution, define who owns the remainder when whole-contract rou
 ## Enabling sandbox mode
 
 Replace process-local maps with durable storage and atomic uniqueness constraints; implement verified auth and payer binding; wire real payment instructions/providers; add reconciliation and failure handling; update response mode labels. Only then change the intentional `APP_MODE` guard in `src/app.ts`. Setting keys or `APP_MODE=sandbox` alone cannot enable integrations.
+
+## Stage 1 orchestration handoff
+
+[EXECUTION.md](EXECUTION.md) defines the confirmed-purchase → durable fulfillment →
+reserved sandbox budget/order-intent boundary and Gemini reporting protocol.
+The `mekila` proof-echo and order-submission methods are replaced with fail-closed
+guards in the selectively ported provider. Only public discovery is reusable now.
+No funds are converted; all trading/issuance/refunds remain disabled.

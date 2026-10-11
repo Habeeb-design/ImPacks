@@ -6,7 +6,7 @@ import { demoProviders, packs } from "../src/providers/demo.js";
 import { drawCards, PackService } from "../src/services/packs.js";
 
 async function setup(t: test.TestContext, providers = demoProviders()) {
-  const app = buildApp({ providers });
+  const app = buildApp({ providers, checkoutDatabasePath: ":memory:" });
   t.after(() => app.close());
   const login = await app.inject({ method: "POST", url: routes.login, payload: { displayName: "Builder" } });
   assert.equal(login.statusCode, 200);

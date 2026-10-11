@@ -6,7 +6,7 @@ import { sepolia } from "viem/chains";
 export function readAusdConfig(env: NodeJS.ProcessEnv = process.env) {
   let rpcUrl: URL;
   try { rpcUrl = new URL(env.AUSD_RPC_URL ?? ""); }
-  catch { throw new Error("Set AUSD_RPC_URL to a Ethereum Sepolia HTTP(S) RPC URL."); }
+  catch { throw new Error("Set AUSD_RPC_URL to an Ethereum Sepolia HTTP(S) RPC URL."); }
   if (!["http:", "https:"].includes(rpcUrl.protocol)) {
     throw new Error("AUSD_RPC_URL must use HTTP(S).");
   }

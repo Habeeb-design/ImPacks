@@ -1,38 +1,44 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardMotion, OPENING_DURATION } from '../src/lib/opening-timeline';
+import { cardMotion, openingTiming, revealLayout } from '../src/lib/opening-timeline';
 
-test('cards fit the pouch and fully clear the seam before spreading or spinning', () => {
-  assert.ok(156 < 192 - 2 * 12, 'card leaves room for side seams');
-  for(let time=0;time<=OPENING_DURATION;time+=10) {
-    for(let i=0;i<3;i++) {
-      const card=cardMotion(time,i,3);
-      if(card.fan>0 || card.angle<1260) {
-        assert.equal(card.rise,1);
-        assert.ok(340+card.y+260 < 300+29, 'bottom of card clears the seam');
+for (const count of [1, 2, 3, 6, 12, 40]) {
+  test(`${count} cards clear the wrapper before growing, arranging or spinning`, () => {
+    const timing=openingTiming(count);
+    for(let time=0;time<=timing.duration;time+=20) {
+      for(let i=0;i<count;i++) {
+        const card=cardMotion(time,i,count);
+        if(time<timing.fanStart) assert.equal(card.scale,1);
+        if(card.fan>0 || card.angle<1260) assert.equal(card.rise,1);
+        if(time>=timing.clearAt && time<=timing.fanStart) assert.ok(340+card.y+260<329);
+        if(card.angle>180) assert.equal(card.reveal,0,'artwork stays hidden during full turns');
+        assert.ok(Number.isFinite(card.x+card.y+card.angle+card.scale));
       }
-      if(card.angle>180) assert.equal(card.reveal,0,'no artwork flashes during the three full turns');
-      assert.ok(Number.isFinite(card.x+card.y+card.angle));
     }
-  }
-});
-test('extraction and final reveal progress continuously, with staggered cards', () => {
-  assert.equal(cardMotion(3380,0,3).visible,true);
-  assert.equal(cardMotion(3380,1,3).visible,false);
-  for(let i=0;i<3;i++) {
-    let previous=cardMotion(0,i,3);
-    for(let time=10;time<=OPENING_DURATION;time+=10) {
-      const current=cardMotion(time,i,3);
-      assert.ok(current.rise>=previous.rise && current.reveal>=previous.reveal);
-      assert.ok(Math.abs(current.y-previous.y)<5,'no extraction jump');
-      previous=current;
+    assert.ok(timing.duration<11000,'large counts do not create an unbounded wait');
+  });
+  test(`${count} final cards fit without overlaps on narrow and wide layouts`, () => {
+    for(const width of [330,620,1100]) {
+      const layout=revealLayout(count,width),end=openingTiming(count).duration;
+      const cards=Array.from({length:count},(_,i)=>cardMotion(end,i,count,width));
+      for (let i=0;i<count;i++) {
+        const card=cards[i]!;
+        assert.equal(card.angle,0);assert.equal(card.reveal,1);
+        const left=width/2+card.x-layout.cardWidth/2,top=470+card.y-layout.cardHeight/2;
+        assert.ok(left>=0 && left+layout.cardWidth<=width+0.01);
+        assert.ok(top>=0 && top+layout.cardHeight<=card.contentHeight+0.01);
+        for(let j=0;j<i;j++) {
+          const other=cards[j]!;
+          assert.ok(Math.abs(card.x-other.x)>=layout.cardWidth || Math.abs(card.y-other.y)>=layout.cardHeight,'cards must not overlap');
+        }
+      }
+      assert.deepEqual(cards,Array.from({length:count},(_,i)=>cardMotion(end,i,count,width)),'replay is deterministic');
     }
-    assert.equal(previous.angle,0);assert.equal(previous.reveal,1);
-  }
-});
-test('skip and replay deterministically preserve the final card layout', () => {
-  const final=Array.from({length:3},(_,i)=>cardMotion(OPENING_DURATION,i,3));
-  for(let t=0;t<OPENING_DURATION;t+=37) cardMotion(t,0,3);
-  assert.deepEqual(Array.from({length:3},(_,i)=>cardMotion(OPENING_DURATION,i,3)),final);
-  assert.deepEqual(final.map(c=>c.x),[0,-165,165]);
+  });
+}
+test('small reveals get larger cards; many cards wrap instead of becoming unreadable', () => {
+  assert.ok(revealLayout(1,1100).scale>revealLayout(6,1100).scale);
+  assert.ok(revealLayout(3,1100).cardWidth>=280);
+  assert.ok(revealLayout(40,330).cardWidth>=240);
+  assert.ok(revealLayout(40,330).height>700);
 });

@@ -128,7 +128,7 @@ export function buildApp(options: { ephemeralDemo?: boolean; embeddedDemo?: bool
     const available = !embeddedDemo && !!recipient && isAddress(recipient) && !/^0x0{40}$/i.test(recipient) && originReady;
     return { available, chainId: 11155111, network: "Ethereum Sepolia", paymentEnabled: false,
       orderSubmissionEnabled: false, refundBroadcastEnabled: false,
-      reason: available ? "Checkout and receipt verification are available. Trading and refund transfers are not enabled."
+      reason: available ? "Checkout preparation is available. Receipt verification requires configured Ethereum Sepolia RPC access. Trading and refund transfers are not enabled."
         : "Testnet checkout needs a standalone API, receiving wallet and configured application origin." };
   });
   app.get(routes.checkout, async request => {

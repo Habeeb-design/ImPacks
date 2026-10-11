@@ -5,6 +5,7 @@ import type { Card, Opening } from "@impacks/contracts";
 import { api, ApiError } from "../lib/api";
 import { cardStatus, closeAttemptStorageKey, collectionSummary, filterCollection, openingGenre, statusLabels, type CollectionFilter } from "../lib/collection";
 import { usePackSession } from "../lib/session";
+import { CheckoutHistory } from "./TestnetCheckout";
 import { SiteHeader } from "./SiteHeader";
 import { useAccountWallet } from "./WalletProvider";
 import "./dashboard.css";
@@ -114,6 +115,8 @@ export function Dashboard() {
             return <button className="collector-item" key={card.id} onClick={() => inspect(original, card)} aria-label={`View ${card.side}: ${card.question}. ${statusLabels[status]}`}><CardFace card={card} genre={openingGenre(opening)} index={original.cards.findIndex(item => item.id === card.id)}/><div className="collector-item-meta"><span>{status === "open" ? `${money(card.order.spentCents)} spent` : status === "closed" ? `${money(card.position?.proceedsCents ?? 0)} returned (simulated)` : statusLabels[status]}</span><span>{status === "open" ? "Manage position" : "View card"} <b aria-hidden="true">↗</b></span></div></button>;
           })}</div></section>)}</div>}
       </>}
+
+    {wallet.authenticated && <CheckoutHistory key={`${wallet.userId}:${wallet.address}`}/>}
 
     <dialog className="collection-detail" aria-label="Prediction card details" ref={dialog} onCancel={event => { if (closing) event.preventDefault(); else dismiss(); }} onClose={dismiss}>
       {selectedCard && selectedOpening && selectedStatus && <><button className="collection-detail-dismiss" aria-label="Close card details" disabled={closing} onClick={dismiss}>×</button><div className="collection-detail-layout"><CardFace card={selectedCard} genre={openingGenre(selectedOpening)} index={selectedOpening.cards.findIndex(card => card.id === selectedCard.id)}/><div className="collection-detail-info"><p className="eyebrow">{statusLabels[selectedStatus].toUpperCase()}</p><h2>Your {selectedCard.side} card.</h2><p>{selectedCard.side === "YES" ? "Your side wins if this market resolves YES." : "Your side wins if this market resolves NO."} Resolution follows the market’s rules.</p><dl><div><dt>Contracts {selectedStatus === "closed" ? "closed" : "filled"}</dt><dd>{selectedStatus === "open" || selectedStatus === "closed" ? selectedCard.order.quantity : "—"}</dd></div><div><dt>Simulated amount spent</dt><dd>{money(selectedCard.order.spentCents)}</dd></div><div><dt>Entry price per contract</dt><dd>{money(selectedCard.priceCents)}</dd></div><div><dt>{selectedStatus === "closed" ? "Simulated close proceeds" : "Gross payout if your side wins"}</dt><dd>{selectedStatus === "closed" ? money(selectedCard.position?.proceedsCents ?? 0) : selectedStatus === "open" ? money(selectedCard.order.quantity * 100) : "—"}</dd></div></dl>

@@ -15,6 +15,12 @@ Open http://localhost:3000. The Next.js App Router frontend proxies `/api` to th
 
 **Team starter:** Privy email sign-in and on-chain wallet balance reads are implemented. Pack payments and fills are simulated, and pack state resets on API restart. Non-demo trading mode refuses to start until the backend team wires real providers and persistence. Do not collect money with this starter.
 
+The independent `/api/checkout` flow now persists purchases in SQLite and verifies
+testnet AUSD receipts. It does not issue packs or enable payment collection;
+wallet sessions and durable internal fulfillment authorization are available, while
+issuer integration and live rollout checks remain outstanding. See the
+[checkout setup](apps/api/README.md#persistent-checkout-and-verification).
+
 ## Ownership
 
 | Directory | Owner | Purpose |
@@ -56,3 +62,7 @@ Set the Vercel project root directory to `apps/web`, Node.js to `24.x`, and depl
 - Server owns selection, budget and execution; browser animates stored results, never rerolls.
 - AUSD testnet payment and Gemini sandbox USD are separate. This MVP has no AUSD-to-Gemini bridge.
 - Target Most Creative, Gemini Predictions and Agora AUSD tracks. Replace fixtures with working testnet/sandbox integrations before judging.
+
+Stage 1 now adds [durable sandbox execution preparation](docs/EXECUTION.md): confirmed
+purchases reserve an internal nominal USD budget and stable order intents. Order
+submission, card issuance and refunds remain disabled.

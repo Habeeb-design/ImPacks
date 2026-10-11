@@ -100,7 +100,7 @@ export function PackOpeningReveal({ opening, category, onClose }: {
         </div>
       </div>
     </div>
-    {complete && <div className={styles.results}>{opening.cards.map(card=><PredictionCard key={card.id} card={card}/>)}</div>}
+    {complete && <div className={styles.results}>{opening.cards.map(card=><PredictionCard key={card.id} card={card} mode={opening.mode}/>)}</div>}
     <footer className={styles.footer}><p role="status">{status}</p><div className={styles.actions}>
       {complete ? <><button type="button" onClick={()=>controls.current?.replay()}>Replay opening</button><Link href={`/dashboard?opening=${encodeURIComponent(opening.id)}`} onClick={onClose}>View collection ↗</Link></> : <><button type="button" onClick={()=>controls.current?.toggle()}>{playing ? "Pause" : "Resume"}</button><button type="button" onClick={()=>controls.current?.skip()}>Reveal all ↗</button></>}
     </div></footer>

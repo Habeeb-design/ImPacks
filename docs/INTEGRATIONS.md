@@ -10,6 +10,8 @@ The optional [welcome-grant extension](WELCOME_GRANTS.md) adds PostgreSQL persis
 
 Read [sandbox treasury and execution architecture](PAYMENTS_ARCHITECTURE.md) before wiring external side effects, and [AUSD execution escrow specification](ESCROW_SPEC.md) for the optional contract. These researched designs recommend a durable treasury/ledger sandbox first, with escrow added to the same execution backend later. They specify wallet binding, exact-money accounting, order recovery, unspent-budget withdrawals, role boundaries, and acceptance evidence. They are proposals, not implemented integrations.
 
+The opening flow still runs demo providers. Independent AUSD checkout routes now persist purchases in SQLite and verify Base Sepolia transfers with durable replay protection. EIP-191 wallet login and durable internal fulfillment authorization are available. There is no transaction submission, Gemini connectivity, refund system or automatic reconciliation. The issuer handoff is documented in [the internal fulfillment contract](FULFILLMENT.md). Payment collection remains disabled. See [checkout setup](../apps/api/README.md#persistent-checkout-and-verification). Provider interfaces in `apps/api/src/providers/ports.ts` give the backend team an agreed starting point. The frontend calls only ImPacks endpoints.
+
 ## AUSD payments
 
 Use Ethereum Sepolia for the hackathon. Agora documents testnet AUSD at `0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC`; AUSD has six decimals. Verify the deployment before integration: [contract deployments](https://docs.agora.finance/developer/contract-deployments), [token precision](https://docs.agora.finance/api), [testnet faucet guide](https://docs.agora.finance/instant-settlement/guides/getting-testnet-tokens).
@@ -48,3 +50,11 @@ The detailed architecture proposes returning unspent budget to a withdrawable te
 ## Enabling sandbox mode
 
 Replace process-local maps with durable storage and atomic uniqueness constraints; implement verified auth and payer binding; wire real payment instructions/providers; add reconciliation and failure handling; update response mode labels. Only then change the intentional `APP_MODE` guard in `src/app.ts`. Setting keys or `APP_MODE=sandbox` alone cannot enable integrations.
+
+## Stage 1 orchestration handoff
+
+[EXECUTION.md](EXECUTION.md) defines the confirmed-purchase → durable fulfillment →
+reserved sandbox budget/order-intent boundary and Gemini reporting protocol.
+The `mekila` proof-echo and order-submission methods are replaced with fail-closed
+guards in the selectively ported provider. Only public discovery is reusable now.
+No funds are converted; all trading/issuance/refunds remain disabled.

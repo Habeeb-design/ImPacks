@@ -75,11 +75,17 @@ export function PacksBrowser({ compact = false }: { compact?: boolean }) {
       <div className={styles.rail} ref={rail} aria-roledescription="carousel" aria-label="Pack editions"
         onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onPointerDown={() => setRotating(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={event => {if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);}}
         onKeyDown={event => { if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); setRotating(false); selectIndex(currentIndex + (event.key === "ArrowRight" ? 1 : -1)); } }}>
-        {filtered.map((genre, index) => <button key={genre.id} data-genre={genre.id} className={`${styles.edition} ${current?.id === genre.id ? styles.selected : ""}`} aria-pressed={current?.id === genre.id} aria-label={`${genre.name} edition${packs.some(pack => pack.id === genre.packId) ? ", pack available" : ", genre preview"}`} onClick={() => { setRotating(false); selectIndex(index); }}>
-          <span className={styles.editionTitle}>{genre.name}<span>↗</span></span>
-          <span className={styles.artwork}><PackArtwork genre={genre.name}/></span>
-          <span className={styles.editionStatus}>{packs.some(pack => pack.id === genre.packId) ? "Explore pack" : "Genre preview"}</span>
-        </button>)}
+        {filtered.map((genre, index) => {
+          const pack = packs.find(item => item.id === genre.packId);
+          const className = `${styles.edition} ${current?.id === genre.id ? styles.selected : ""}`;
+          const content = <>
+            <span className={styles.editionTitle}>{genre.name}<span aria-hidden="true">{pack ? "↗" : "+"}</span></span>
+            <span className={styles.artwork}><PackArtwork genre={genre.name}/></span>
+            <span className={styles.editionStatus}>{pack ? "Explore pack" : "Preview edition"}</span>
+          </>;
+          return pack ? <Link key={genre.id} data-genre={genre.id} className={className} href={`/category/${pack.theme}`} aria-label={`Open ${genre.name} pack`} onClick={() => setRotating(false)}>{content}</Link>
+            : <button key={genre.id} data-genre={genre.id} className={className} aria-pressed={current?.id === genre.id} aria-label={`Preview ${genre.name} edition`} onClick={() => { setRotating(false); selectIndex(index); }}>{content}</button>;
+        })}
       </div>
       <div className={styles.controls}><span>{String(currentIndex + 1).padStart(2, "0")} <span>/ {String(filtered.length).padStart(2, "0")}</span></span><div><button onClick={() => { setRotating(false); selectIndex(currentIndex - 1); }} aria-label="Previous edition">←</button><button className={styles.rotate} onClick={() => setRotating(value => !value)}>{rotating ? "Pause slideshow" : "Play slideshow"}</button><button onClick={() => { setRotating(false); selectIndex(currentIndex + 1); }} aria-label="Next edition">→</button></div></div>
       {current && <div className={styles.detail} aria-live="polite">

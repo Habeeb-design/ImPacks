@@ -1,0 +1,4 @@
+.single :global(.foil-logo-collage) :global(.foil-logo){width:74%;height:95%;left:13%;top:0;transform:rotate(-6deg)}
+.pair :global(.foil-logo-collage) :global(.foil-logo){width:50%;height:85%;top:7%}
+.pair :global(.foil-logo-collage) :global(.foil-logo-1){left:7%;transform:rotate(-20deg);z-index:1}
+.pair :global(.foil-logo-collage) :global(.foil-logo-2){left:43%;transform:rotate(20deg);z-index:2}

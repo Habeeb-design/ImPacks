@@ -5,20 +5,24 @@ import type { JWTVerifyGetKey } from "jose";
 import { randomBytes, randomUUID } from "node:crypto";
 import { ZodError } from "zod";
 import { closePositionSchema, loginSchema, openSchema, quoteSchema, routes, type User } from "@impacks/contracts";
+import { createMarketCategoryReader } from "./services/market-categories.js";
 import { demoProviders, packs } from "./providers/demo.js";
 import type { Providers } from "./providers/ports.js";
 import { PackService } from "./services/packs.js";
 import { HttpError } from "./errors.js";
+import { registerGrantRoutes, type GrantApi } from "./grants/routes.js";
 // Explicit CJS-compatible adapter for serverless hosts that cannot require ESM.
 export { default as injectRequest } from "light-my-request";
 
-export function buildApp(options: { mode?: string; providers?: Providers; privyAppId?: string; privyKey?: JWTVerifyGetKey } = {}) {
+export function buildApp(options: { mode?: string; providers?: Providers; privyAppId?: string; privyKey?: JWTVerifyGetKey; grants?: GrantApi } = {}) {
   if ((options.mode ?? "demo") !== "demo") throw new Error("Only demo mode is wired. Implement verified identity, durable storage, AUSD and Gemini providers before enabling sandbox.");
   const privyAppId = options.privyAppId ?? process.env.PRIVY_APP_ID ?? process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const verifyPrivy = privyAppId ? createPrivyVerifier(privyAppId, options.privyKey) : null;
   const app = Fastify({ bodyLimit: 32_768 });
+  registerGrantRoutes(app, options.grants, verifyPrivy);
   const sessions = new Map<string, { user: User; expiresAt: number }>();
   const service = new PackService(packs, options.providers ?? demoProviders());
+  const readCategories = createMarketCategoryReader();
   function user(authorization?: string): User {
     const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
     const session = sessions.get(token);
@@ -61,6 +65,7 @@ export function buildApp(options: { mode?: string; providers?: Providers; privyA
   });
   app.get<{Params:{address:string}}>(`${routes.wallets}/:address/ausd`, async request => readAusdBalance(request.params.address));
   app.get(routes.packs, async () => ({ packs }));
+  app.get(routes.marketCategories, async () => readCategories());
   app.post(routes.quotes, async request => {
     const body = quoteSchema.parse(request.body);
     return service.quote(user(request.headers.authorization).id, body.packId, body.budgetCents);

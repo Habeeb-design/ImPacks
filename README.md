@@ -11,9 +11,9 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The Next.js App Router frontend proxies `/api` to the Fastify API at http://localhost:3001. No credentials needed for local development. Enter a display name, select a pack, accept random selection, and open it.
+Open http://localhost:3000. The Next.js App Router frontend proxies `/api` to the Fastify API at http://localhost:3001. Set the public Privy App ID as described in the app environment examples to enable email sign-in. Browse genres under Packs, select an available edition, accept random selection, and open it. Dashboard keeps the resulting cards grouped by opened pack and lets the signed-in owner inspect or close simulated positions.
 
-**Team starter:** login, AUSD payments, market data, and fills are simulated. In-memory data resets on API restart. Non-demo mode refuses to start until the backend team wires real providers and persistence. Do not collect money with this starter.
+**Team starter:** Privy email sign-in and on-chain wallet balance reads are implemented. Pack payments and fills are simulated, and pack state resets on API restart. Non-demo trading mode refuses to start until the backend team wires real providers and persistence. Do not collect money with this starter.
 
 ## Ownership
 
@@ -25,6 +25,10 @@ Open http://localhost:3000. The Next.js App Router frontend proxies `/api` to th
 | `docs/TEAM.md` | Both teams | Living task board, decisions, blockers, handoffs |
 
 Start with [team roles and status](docs/TEAM.md), [API contract](docs/API.md), and [integration notes](docs/INTEGRATIONS.md). Update the team board in each PR.
+
+Backend build plan: [sandbox treasury, ledger and execution](docs/PAYMENTS_ARCHITECTURE.md), followed by the optional [AUSD execution escrow](docs/ESCROW_SPEC.md). These are researched specifications; pack payments and trading remain unimplemented.
+
+Optional [50-test-AUSD welcome grants](docs/WELCOME_GRANTS.md) on **Ethereum Sepolia (11155111)** are implemented and disabled by default. A separate worker funds new, verified Privy users from a dedicated external wallet, with PostgreSQL records preventing duplicate grants. Follow the setup guide to configure server secrets, migrate the database, and run the worker. This does not fund Gemini or enable pack payments.
 
 ```sh
 npm run dev:web       # UI only; needs API for data

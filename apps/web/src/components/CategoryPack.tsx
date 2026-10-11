@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DISCLOSURE, type Pack } from "@impacks/contracts";
+import { DISCLOSURE, type Pack, type Opening } from "@impacks/contracts";
 import { api } from "../lib/api";
 import { usePackSession } from "../lib/session";
 import { categoryCopy, dollarsToCents, money, priceTiers, snapCustomDollars, tableCardCount, tableOverflow, type CategoryId } from "../lib/category";
+import { PackOpeningReveal } from "./PackOpeningReveal";
 import { CardSpread } from "./CardSpread";
 import { PredictionCard } from "./PredictionCard";
 import { SiteHeader } from "./SiteHeader";
@@ -17,6 +18,7 @@ export function CategoryPack({ category }: { category: CategoryId }) {
   const wallet = useAccountWallet();
   const router = useRouter();
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [reveal, setReveal] = useState<{ opening: Opening; owner: string; category: CategoryId } | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [tier, setTier] = useState<20 | 50 | 100 | "custom">(20);
   const [customText, setCustomText] = useState("75");
@@ -32,7 +34,7 @@ export function CategoryPack({ category }: { category: CategoryId }) {
   const returnPath = `/category/${category}?amount=${dollars ?? 20}`;
   const loginPath = `/login?next=${encodeURIComponent(returnPath)}`;
 
-  useEffect(() => { setAccepted(false); }, [wallet.userId, category]);
+  useEffect(() => { setAccepted(false); setReveal(null); }, [wallet.userId, category]);
 
   useEffect(() => {
     setTier(20); setCustomText("75");
@@ -55,7 +57,11 @@ export function CategoryPack({ category }: { category: CategoryId }) {
     if (!wallet.authenticated) { router.push(loginPath); return; }
     if (shop.sessionError) { shop.retrySession(); return; }
     if (!wallet.address) { await wallet.create(); return; }
-    if (budgetCents) await shop.openPack(category, accepted, budgetCents);
+    if (budgetCents && wallet.userId) {
+      const owner = wallet.userId;
+      const result = await shop.openPack(category, accepted, budgetCents);
+      if (result) setReveal({ opening: result, owner, category });
+    }
   }
 
   const buyDisabled = !wallet.configured || shop.connecting || shop.busy || pendingElsewhere || budgetCents === null
@@ -79,6 +85,7 @@ export function CategoryPack({ category }: { category: CategoryId }) {
   return (
     <main className={`category-page category-${category}`}>
       <SiteHeader/>
+      {reveal && reveal.category === category && reveal.owner === wallet.userId && wallet.authenticated && <PackOpeningReveal key={reveal.opening.id} opening={reveal.opening} category={category} onClose={() => setReveal(null)}/>}
 
       <section className="category-stage">
         <div className="category-intro">

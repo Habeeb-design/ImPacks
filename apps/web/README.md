@@ -38,7 +38,7 @@ Framework references: [App Router setup](https://nextjs.org/docs/app/getting-sta
 
 `/` is the public landing; `/login` mounts Privy; `/packs` is the existing demo catalog and collection. Set `NEXT_PUBLIC_PRIVY_APP_ID` in the web app and `PRIVY_APP_ID` in the separate API (the embedded Vercel API can use the public variable). Configure allowed origins in the Privy dashboard for localhost and the deployment if origin restrictions are enabled. No Privy app secret is used. Authenticated users exchange their access token at `POST /api/auth/privy`; the API verifies against the public app JWKS before creating a demo session. Real identity does not enable real payments/trades.
 
-The root Privy provider persists wallet state across pages and requests an embedded Ethereum wallet for all users during Privy modal login. Base Sepolia is the only configured chain. The account control shows the actual AUSD balance through the API’s read-only wallet endpoint. Real transfers remain disabled until settlement and durable payer binding are implemented. Never equate a displayed/linked wallet with backend proof of payment ownership.
+The root Privy provider persists wallet state across pages and requests an embedded Ethereum wallet for all users during Privy modal login. Ethereum Sepolia is the only configured chain. The account control shows the actual AUSD balance through the API’s read-only wallet endpoint. Real transfers remain disabled until settlement and durable payer binding are implemented. Never equate a displayed/linked wallet with backend proof of payment ownership.
 
 ### Category purchases
 

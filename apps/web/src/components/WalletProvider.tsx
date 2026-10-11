@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { PrivyProvider, usePrivy, useWallets, useCreateWallet } from "@privy-io/react-auth";
-import { baseSepolia } from "viem/chains";
+import { sepolia } from "viem/chains";
 import { api } from "../lib/api";
 type WalletState = { configured: boolean; authReady: boolean; userId: string | null; getAccessToken: () => Promise<string | null>; ready: boolean; authenticated: boolean; address: string | null; embedded: boolean; creating: boolean; error: string; create: () => Promise<void>; disconnect: () => Promise<void> };
 const WalletContext = createContext<WalletState>({ configured:false, authReady:false, userId:null, getAccessToken:async()=>null, ready:false, authenticated:false, address:null, embedded:false, creating:false, error:"", create:async()=>{}, disconnect:async()=>{} });
@@ -33,5 +33,5 @@ function WalletStateProvider({ children }: {children: ReactNode}) {
 export function WalletProvider({children}: {children: ReactNode}) {
  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
  if (!appId) return <>{children}</>;
- return <PrivyProvider appId={appId} config={{appearance:{theme:"light",accentColor:"#171717",landingHeader:"Your ImPacks wallet",loginMessage:"Sign in to create your wallet and explore AUSD packs."},loginMethods:["email"],defaultChain:baseSepolia,supportedChains:[baseSepolia],embeddedWallets:{ethereum:{createOnLogin:"all-users"}}}}><WalletStateProvider>{children}</WalletStateProvider></PrivyProvider>;
+ return <PrivyProvider appId={appId} config={{appearance:{theme:"light",accentColor:"#171717",landingHeader:"Your ImPacks wallet",loginMessage:"Sign in to create your wallet and explore AUSD packs."},loginMethods:["email"],defaultChain:sepolia,supportedChains:[sepolia],embeddedWallets:{ethereum:{createOnLogin:"all-users"}}}}><WalletStateProvider>{children}</WalletStateProvider></PrivyProvider>;
 }

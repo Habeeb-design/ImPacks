@@ -53,11 +53,17 @@ Payment: `confirmed`, `failed`, `unknown`. Orders: `filled`, `pending`, `failed`
 
 ### Public wallet balance
 
-`GET /api/wallets/:address/ausd` reads a valid EVM address on Base Sepolia. Returns WalletBalance (`address`, `chainId:84532`, `asset:"AUSD"`, `tokenAddress`, decimal-string `balanceAtomic`, exact `formatted` string, `network:"Base Sepolia"`). Invalid addresses return 400; RPC/chain/token validation failures return 503. This read does not prove account ownership or authorize payments.
+`GET /api/wallets/:address/ausd` reads a valid EVM address on Ethereum Sepolia. Returns WalletBalance (`address`, `chainId:11155111`, `asset:"AUSD"`, `tokenAddress`, decimal-string `balanceAtomic`, exact `formatted` string, `network:"Ethereum Sepolia"`). Invalid addresses return 400; RPC/chain/token validation failures return 503. This read does not prove account ownership or authorize payments.
 
+## Welcome grant extension
 
-## Collector dashboard
+`POST /api/welcome-grant` (empty object) and `GET /api/welcome-grant` require a verified **Privy access token**, not the existing demo session token. They enqueue/read only that Privy user's one-time 50-test-AUSD grant. The shared `WelcomeGrant` DTO returns status, fixed asset/amount/chain, recipient and transaction hash. Clients cannot specify amount, recipient or user ID. Disabled servers return `status: disabled`; no token transfer is simulated.
 
+`POST /api/webhooks/privy` verifies the raw request with Svix headers and enqueues supported Privy signup/wallet events. A separate persistent worker verifies identity and sends funds. See [welcome-grant setup and recovery](WELCOME_GRANTS.md). This extension does not change pack-payment semantics.
+
+## Collector dashboard and genre discovery
+
+- `GET /api/market-categories` reads Gemini's public active category endpoint and returns `{ categories: string[], fetchedAt: string, source: "gemini" }`. Concurrent reads coalesce and successful responses cache for 60 seconds. Upstream failure, timeout or invalid data returns `503 MARKET_CATEGORIES_UNAVAILABLE`; expired data is not silently reused. Discovery does not change pack trading eligibility.
 - Openings now include optional `theme`; filled positive-quantity cards receive `position: { status: "open" }`. Order receipts retain the original entry quantity and spend.
 - `POST /api/openings/:id/cards/:cardId/close` requires the current API bearer session, an `Idempotency-Key`, and `{ "confirmSimulation": true }`. Only the opening's owner can close a confirmed filled position. This paper-only action closes its entire quantity at the current fixture side price and returns the updated Opening. `position` gains `status: "closed"`, `closedAt`, `exitPriceCents`, and `proceedsCents`; the card remains in the portfolio. No wallet or Gemini order call occurs and proceeds are not redeemable funds.
 - Concurrent/replayed close requests cannot close twice. Keys are bound to owner/opening/card; reuse for another position returns `409 KEY_REUSED`. Missing/unavailable prices leave the position open and permit a same-key retry. Nonfilled orders and sandbox openings fail closed. In-memory storage and these retry guards are not durable trading infrastructure.

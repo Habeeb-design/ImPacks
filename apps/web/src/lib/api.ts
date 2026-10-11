@@ -1,5 +1,6 @@
-import { routes, type ApiErrorBody, type Opening, type OpenRequest, type Pack, type Portfolio, type Quote, type Session, type WalletBalance } from "@impacks/contracts";
+import { routes, type ApiErrorBody, type Opening, type OpenRequest, type Pack, type Portfolio, type Quote, type Session, type WalletBalance, type WelcomeGrant } from "@impacks/contracts";
 const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+import type { MarketCategories } from "@impacks/contracts";
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); }
 }
@@ -16,7 +17,9 @@ async function request<T>(path: string, token?: string, body?: unknown, key?: st
   return response.status === 204 ? undefined as T : response.json();
 }
 export const api = {
+  marketCategories: () => request<MarketCategories>(routes.marketCategories),
   closePosition: (token: string, openingId: string, cardId: string, key: string) => request<Opening>(`${routes.openings}/${encodeURIComponent(openingId)}/cards/${encodeURIComponent(cardId)}/close`, token, { confirmSimulation: true }, key),
+  welcomeGrant: (accessToken: string, enqueue = false) => request<WelcomeGrant>(routes.welcomeGrant, accessToken, enqueue ? {} : undefined),
   walletBalance: (address: string) => request<WalletBalance>(`${routes.wallets}/${encodeURIComponent(address)}/ausd`),
   privyLogin: (accessToken: string) => request<Session>(routes.privyLogin, accessToken, {}),
   login: (displayName: string) => request<Session>(routes.login, undefined, { displayName }),

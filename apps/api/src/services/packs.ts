@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { AUSD_BASE_SEPOLIA, DISCLOSURE_VERSION, centsToAtomic, type Card, type Market, type Opening, type Pack, type Quote } from "@impacks/contracts";
+import { AUSD_ETHEREUM_SEPOLIA, DISCLOSURE_VERSION, centsToAtomic, type Card, type Market, type Opening, type Pack, type Quote } from "@impacks/contracts";
 import { HttpError } from "../errors.js";
 import type { Providers } from "../providers/ports.js";
 
@@ -44,7 +44,7 @@ export class PackService {
     };
     const value: Quote = {
       id: randomUUID(), pack, expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(), disclosureVersion: DISCLOSURE_VERSION,
-      payment: { mode: "demo", asset: "AUSD", amountAtomic: pack.priceAtomic, chainId: AUSD_BASE_SEPOLIA.chainId, tokenAddress: AUSD_BASE_SEPOLIA.tokenAddress, recipient: null },
+      payment: { mode: "demo", asset: "AUSD", amountAtomic: pack.priceAtomic, chainId: AUSD_ETHEREUM_SEPOLIA.chainId, tokenAddress: AUSD_ETHEREUM_SEPOLIA.tokenAddress, recipient: null },
     };
     this.quotes.set(value.id, { userId, value });
     return value;

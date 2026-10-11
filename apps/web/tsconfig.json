@@ -1,5 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "jsx": "react-jsx", "lib": ["ES2022", "DOM", "DOM.Iterable"], "types": ["vite/client"], "noEmit": true },
-  "include": ["src", "vite.config.ts"]
+  "compilerOptions": {
+    "jsx": "react-jsx", "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": true, "isolatedModules": true, "incremental": true,
+    "noEmit": true, "plugins": [{ "name": "next" }]
+  },
+  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", "next.config.ts", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }

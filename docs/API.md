@@ -4,7 +4,7 @@ Canonical types and body schemas live in `packages/contracts/src/index.ts`. Rout
 
 ## Transport
 
-- Development: frontend `/api` proxies to `http://127.0.0.1:3001`.
+- Next.js frontend at `http://localhost:3000`: `/api` rewrites to `http://127.0.0.1:3001`. The rewrite also runs in production; configure `API_PROXY_TARGET` before building for a remote API.
 - JSON bodies; protected routes require `Authorization: Bearer <session token>`.
 - Errors: `{ "error": { "code": "...", "message": "..." } }`.
 - Money: AUSD atomic units are strings (6 decimals); sandbox allocations/spend/prices are integer cents. Never use floats for payment accounting.

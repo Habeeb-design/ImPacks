@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState, type FormEvent } from "react";
 import { DISCLOSURE, DISCLOSURE_VERSION, type Opening, type Pack, type Quote, type Session } from "@impacks/contracts";
 import { api, ApiError } from "./lib/api";
@@ -11,7 +13,7 @@ function readStored<T>(key: string): T | null {
   try { return JSON.parse(sessionStorage.getItem(key) ?? "null") as T | null; } catch { return null; }
 }
 export function App() {
-  const [session, setSession] = useState<Session | null>(() => readStored(sessionKey));
+  const [session, setSession] = useState<Session | null>(null);
   const [name, setName] = useState("");
   const [packs, setPacks] = useState<Pack[]>([]);
   const [selected, setSelected] = useState("crypto");
@@ -19,7 +21,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [openings, setOpenings] = useState<Opening[]>([]);
-  const [attempt, setAttempt] = useState<Attempt | null>(() => readStored(attemptKey));
+  const [attempt, setAttempt] = useState<Attempt | null>(null);
   const pack = packs.find(p => p.id === selected);
 
   function clearSession() {
@@ -30,7 +32,12 @@ export function App() {
     if (cause instanceof ApiError && cause.status === 401) clearSession();
     setError(cause instanceof Error ? cause.message : "Something went wrong.");
   }
-  useEffect(() => { void api.packs().then(result => setPacks(result.packs)).catch(showError); }, []);
+  useEffect(() => {
+    // Read browser storage after hydration; server and initial client markup must match.
+    setSession(readStored<Session>(sessionKey));
+    setAttempt(readStored<Attempt>(attemptKey));
+    void api.packs().then(result => setPacks(result.packs)).catch(showError);
+  }, []);
   useEffect(() => {
     if (session) void api.portfolio(session.token).then(result => setOpenings(result.openings)).catch(showError);
   }, [session]);

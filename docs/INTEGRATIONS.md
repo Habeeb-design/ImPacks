@@ -10,7 +10,7 @@ Use Base Sepolia for the hackathon. Agora documents testnet AUSD at `0xa9012a055
 
 Backend tasks:
 
-1. Configure a testnet RPC and project recipient address. Never place a private key in `VITE_*` or ask users to paste wallet secrets.
+1. Configure a testnet RPC and project recipient address. Never place a private key in `NEXT_PUBLIC_*` or ask users to paste wallet secrets.
 2. Bind the authenticated user to the signing/paying wallet. A wallet connection alone is not authenticated proof of ownership.
 3. Persist a quote containing immutable amount, asset, chain, recipient, payer, expiry and disclosure version. Return payment instructions agreed with frontend.
 4. Implement `PaymentProvider.confirm`: inspect a successful, sufficiently confirmed receipt; verify the actual AUSD transfer event, chain, contract, sender, recipient and exact amount. A supplied transaction hash alone proves nothing.

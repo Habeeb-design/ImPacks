@@ -1,5 +1,5 @@
 import { routes, type ApiErrorBody, type Opening, type OpenRequest, type Pack, type Portfolio, type Quote, type Session } from "@impacks/contracts";
-const base = import.meta.env.VITE_API_BASE_URL ?? "";
+const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); }
 }

@@ -17,7 +17,7 @@ Target demo: AUSD on Base Sepolia plus Gemini Predictions sandbox. AUSD purchase
 | Markets and trading lead — assign teammate | Backend/API | Gemini discovery, quotes, order submission and fills | Normalized market/order adapters |
 | Payments and platform lead — assign teammate | Backend/API | AUSD, identity, persistence, orchestration, reconciliation | Verified payment receipt and durable opening |
 
-These are responsibilities within two teams, not four required people. Frontend owns `apps/web`; backend owns `apps/api`. Both review `packages/contracts` and changes to the purchase flow. One teammate should take release/demo coordination before submission.
+These are responsibilities within two teams, not four required people. Frontend owns `apps/web` (Next.js App Router); backend owns `apps/api` (Fastify). Both review `packages/contracts` and changes to the purchase flow. One teammate should take release/demo coordination before submission.
 
 ## Work board
 
@@ -25,6 +25,7 @@ These are responsibilities within two teams, not four required people. Frontend 
 | --- | --- | --- | --- | --- |
 | SETUP-1 | Workspaces, shared types, scripts and lockfile | Repo setup | Done | Both apps install and build from root |
 | SETUP-2 | Demo login, pack open, collection | Repo setup | Done | Frontend consumes API, clearly labeled simulated |
+| SETUP-3 | Next.js App Router migration | Repo setup | Done | Next build, hydration and API rewrite verified |
 | FE-1 | Component structure and visual design | Frontend | Ready | Mobile and desktop login → opening flow |
 | FE-2 | Pack reveal animation | Frontend | Ready | Returned cards animate; reduced motion works |
 | FE-3 | Login and wallet payment UI | Frontend | Waiting on BE-1 / BE-3 | Authenticated wallet pays exact quote; rejection recoverable |
@@ -55,11 +56,12 @@ These are responsibilities within two teams, not four required people. Frontend 
 
 ## Handoff log
 
-Scaffold verification: `npm run typecheck`, all 11 API tests, and `npm run build` passed. The development command starts both apps, and the frontend proxy reaches `/api/health`. Real vendor integrations and browser visual QA are not verified by these checks.
+Next.js migration verification: `npm run typecheck`, all 11 API tests, and `npm run build` passed. Browser smoke testing against the built Next.js server verified login, pack opening, collection and session restoration after reload through the API rewrite, with no browser warning/error logs. Real vendor integrations remain unverified.
 
 | Date | Change | Next handoff |
 | --- | --- | --- |
 | 2026-10-11 | Repository scaffold, local demo, provider ports, API contract and CI added | Frontend starts FE-1/FE-2; backend starts BE-1/BE-2/BE-3 |
+| 2026-10-11 | Frontend migrated to Next.js App Router; API ownership and shared types retained | Frontend uses `src/app` routes and port 3000; build, tests and browser smoke checks pass |
 
 ## Open decisions
 

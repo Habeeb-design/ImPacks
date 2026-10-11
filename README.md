@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. API: http://localhost:3001. No credentials needed for local development. Enter a display name, select a pack, accept random selection, and open it.
+Open http://localhost:3000. The Next.js App Router frontend proxies `/api` to the Fastify API at http://localhost:3001. No credentials needed for local development. Enter a display name, select a pack, accept random selection, and open it.
 
 **Team starter:** login, AUSD payments, market data, and fills are simulated. In-memory data resets on API restart. Non-demo mode refuses to start until the backend team wires real providers and persistence. Do not collect money with this starter.
 
@@ -19,7 +19,7 @@ Open http://localhost:5173. API: http://localhost:3001. No credentials needed fo
 
 | Directory | Owner | Purpose |
 | --- | --- | --- |
-| `apps/web` | Frontend team | Login, packs, payment UX, reveal, collection |
+| `apps/web` | Frontend team | Next.js App Router: login, packs, payment UX, reveal, collection |
 | `apps/api` | Backend/API team | Identity, AUSD, Gemini, orchestration, persistence |
 | `packages/contracts` | Both teams | Shared schemas, types, endpoints, disclosure |
 | `docs/TEAM.md` | Both teams | Living task board, decisions, blockers, handoffs |
@@ -33,9 +33,10 @@ npm run typecheck
 npm test
 npm run build
 npm run start:api     # built API, after build
+npm run start:web     # Next.js production server, after build
 ```
 
-App-local `.env.example` files document configuration. Copy to `.env` in the same app only when overriding defaults. `VITE_*` values are public; secrets belong in the API app only.
+App-local `.env.example` files document configuration. Copy to `.env` in the same app only when overriding defaults. `NEXT_PUBLIC_*` values are public and inlined at build time; secrets belong in the API app only. Set `API_PROXY_TARGET` before building for a separately hosted API.
 
 ## MVP decisions
 

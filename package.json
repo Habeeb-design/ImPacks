@@ -10,7 +10,8 @@
     "pretypecheck": "npm run build -w @impacks/contracts",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test -w @impacks/api",
-    "start:api": "npm run start -w @impacks/api"
+    "start:api": "npm run start -w @impacks/api",
+    "start:web": "npm run start -w @impacks/web"
   },
   "devDependencies": { "concurrently": "^9.2.1", "typescript": "^5.9.3", "@types/node": "^24.10.0" }
 }

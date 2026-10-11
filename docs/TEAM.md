@@ -29,11 +29,11 @@ These are responsibilities within two teams, not four required people. Frontend 
 | SETUP-2 | Demo login, pack open, collection | Repo setup | Done | Frontend consumes API, clearly labeled simulated |
 | SETUP-3 | Next.js App Router migration | Repo setup | Done | Next build, hydration and API rewrite verified |
 | FE-1 | Component structure and visual design | Frontend / Codex | Done (demo) | Mobile and desktop login → opening flow |
-| FE-2 | Pack reveal animation | Frontend | Single motion approved; multi-card draft ready; integration pending | Returned cards animate; reduced motion works |
-| FE-3 | Login and wallet payment UI | Frontend | Waiting on BE-1 / BE-3 | Authenticated wallet pays exact quote; rejection recoverable |
+| FE-2 | Pack reveal animation | Frontend | Integrated on integration branch; user walkthrough pending | Returned cards animate; reduced motion works |
+| FE-3 | Login and wallet payment UI | Frontend | Checkout/auth/status connected; transfers gated | Authenticated wallet pays exact quote; rejection recoverable |
 | FE-4 | Order and payment result screens | Frontend | Ready | Pending, partial, failed and unknown states are explicit |
-| BE-1 | Real auth and durable storage | Backend/API | Ready | Verified sessions, wallet binding, durable receipts/orders |
-| BE-2 | Gemini markets adapter | Backend/API | Ready | Live discovery, themes, fresh executable prices, sufficient liquidity |
+| BE-1 | Real auth and durable storage | Backend/API | Privy + wallet auth and SQLite checkout integrated; simulated packs remain in memory | Verified sessions, wallet binding, durable receipts/orders |
+| BE-2 | Gemini markets adapter | Backend/API | Public discovery integrated; sandbox liquidity/execution proof pending | Live discovery, themes, fresh executable prices, sufficient liquidity |
 | BE-3 | AUSD testnet payment adapter | AUSD payments developer | In progress: wallet auth, payment verification and durable fulfillment authorization tested; issuer/live rollout pending | Verify sender/token/chain/recipient/amount; proof cannot be reused |
 | BE-4 | Gemini sandbox order adapter | Backend/API | Waiting on BE-1 / BE-2 | Stable client IDs, bounded spend, actual fills and positions |
 | BE-5 | Reconciliation and remainder policy | Backend/API | Ready | Unknown orders checked before retries; refund/remainder policy recorded |
@@ -405,7 +405,7 @@ requested committing/pushing the current work to feature/ausd-payments.
 
 ## Unified integration branch — October 11, 2026
 
-Integration is in progress on `codex/integration-ui-backend`, based on current main and a preservation commit of the local genre browser, reveal animation, welcome grants and Ethereum Sepolia migration. The payment branch is being reconciled with the current UI and contracts. Ethereum Sepolia (11155111) is authoritative; earlier Base Sepolia handoffs are historical evidence, not current configuration. Checkout retains SQLite on a persistent standalone API; welcome grants independently retain PostgreSQL. Neither database is a substitute for the other.
+Integration is assembled on `codex/integration-ui-backend`, based on current main and a preservation commit of the local genre browser, reveal animation, welcome grants and Ethereum Sepolia migration. The payment branch is being reconciled with the current UI and contracts. Ethereum Sepolia (11155111) is authoritative; earlier Base Sepolia handoffs are historical evidence, not current configuration. Checkout retains SQLite on a persistent standalone API; welcome grants independently retain PostgreSQL. Neither database is a substitute for the other.
 
 The category UI keeps its $20/$50/$100/custom budget and three predictions. Additive category checkout snapshots the same catalog edition and budget, consent and durable retry key. Legacy 1/3/5 test-AUSD endpoints remain compatible for backend diagnostics. Privy login is retained; the same embedded wallet signs the existing EIP-191 checkout challenge. The server verifies ownership separately; no display name or browser-provided wallet address grants access.
 

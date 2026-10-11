@@ -267,3 +267,18 @@ GET `/api/internal/checkout/:purchaseId/refund` and POST suffixes `/prepare`,
 `/authorize`, `/reconcile` use the existing internal backend credential. POST bodies
 are strictly empty objects. Authorization is blocked pending an authoritative final
 settlement adapter; broadcasting is disabled. See [REFUNDS.md](REFUNDS.md).
+
+
+## Integrated category checkout and UI status
+
+All checkout routes require the wallet bearer session, independently of the Privy app session. Browser writes require the exact configured Origin. The same Privy embedded wallet signs the existing challenge; no wallet session token is stored in browser storage.
+
+- `GET /api/checkout-capabilities`: public CheckoutCapabilities with network, configuration availability, disabled payment/order/refund flags and a user-facing reason. Embedded mode reports unavailable.
+- `POST /api/checkout`: also accepts `{packType: "category", packId: "crypto" | "sports" | "mixed", budgetCents, disclosureVersion: "random-v1"}` with a required `Idempotency-Key`. Budget follows the existing $20–$250/$5-step rules. The returned purchase contains the immutable Pack snapshot. Same wallet/key/payload returns the same purchase across restart; changed edition/budget returns 409. Legacy tiers remain compatible.
+- `GET /api/checkout`: latest 100 owned purchases as `{purchases: CheckoutStatus[]}` for Dashboard; no other wallet's purchases are returned.
+- `GET /api/checkout/:purchaseId/status`: owned purchase, execution counts/state, sanitized refund status, and a nullable Opening projection. Preparation alone returns no Opening. Trusted reports supply exact persisted card identities and statuses; this is not a new selection or exchange call.
+- `POST /api/checkout/:purchaseId/prepare`, `{}`: only a verified paid owner can ask the backend to reserve and prepare its selection. No order is submitted. The backend manages its fulfillment lease internally; repeated/concurrent requests reuse the committed selection. Market failures return errors, never fixtures.
+
+The existing verification endpoint accepts the same transaction hash for retries. The frontend saves owner-scoped checkout metadata and receipt hashes before requests and restores them after hydration; tokens stay in memory. Pending/unknown orders never count as holdings. Refund status exposes only state, candidate/authorized amount, public hash and disabled-broadcast flag. Internal endpoints remain server-only and reject browser Origin headers.
+
+Schema 5 adds durable checkout keys and chain-bound wallet challenges/sessions. Legacy Base purchases are preserved but blocked from current execution; old unbound sessions require fresh wallet authentication. Embedded demo mode rejects checkout, wallet-auth and internal payment operations and never presents ephemeral storage as durable.

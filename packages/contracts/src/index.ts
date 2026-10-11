@@ -175,7 +175,7 @@ export const executionReportSchema = fulfillmentAttemptSchema.extend({
   clientOrderId: z.string().uuid(), revision: z.number().int().positive().max(1000000),
   state: z.enum(["unknown", "open", "filled", "cancelled", "rejected"]),
   exchangeOrderId: z.string().min(1).max(100).nullable(),
-  filledQuantity: z.number().int().min(0).max(500),
+  filledQuantity: z.number().int().min(0).max(MAX_PACK_CENTS),
   costCents: z.number().int().min(0).max(1000000),
   feeCents: z.number().int().min(0).max(1000000),
 });

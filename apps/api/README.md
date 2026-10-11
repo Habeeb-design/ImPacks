@@ -62,11 +62,11 @@ Existing routes remain; wallet authentication is now required. Optional buyerAdd
 
 Node 24's built-in `node:sqlite` stores purchases with WAL, FULL synchronization,
 a 5-second busy timeout, and a UNIQUE case-insensitive transaction-hash constraint.
-Schema version 2 is initialized/migrated automatically without deleting records. Confirmation and hash consumption
+Schema version 5 is initialized/migrated automatically without deleting records. Confirmation and hash consumption
 commit in one short database transaction; RPC calls happen outside the write lock.
 `src/storage/checkout.ts` owns persistence; `src/providers/ausd/verify.ts` verifies
 receipts; `src/services/checkout.ts` coordinates them without calling pack providers.
-No additional npm dependency or separate database service is required.
+SQLite checkout requires no separate database service. Optional welcome grants use PostgreSQL independently.
 
 Configuration in `apps/api/.env`:
 
@@ -145,3 +145,5 @@ execution and order-intent ledgers; the existing database path/volume and intern
 credential are reused. No Gemini credentials or new dependencies are needed.
 Read-only discovery is selectively adapted from `mekila`; no order submission or
 proof-echo payment confirmation is available. The frontend APIs remain unchanged.
+
+Category checkout and owner-visible status are documented in [the integration handoff](../../docs/INTEGRATION_TEST.md). The current UI uses Privy login and an additional wallet ownership signature; the display-name demo endpoint is only for explicit simulation.

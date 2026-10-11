@@ -2,9 +2,11 @@
 
 ## Current boundary
 
-The API runs demo pack-payment and order providers. Privy access-token verification, embedded-wallet configuration and a read-only Ethereum Sepolia AUSD balance endpoint now exist; the full authenticated payer/payment flow still needs end-to-end verification. There is no pack-payment settlement, authenticated Gemini execution, durable purchase ledger or refund execution. Provider interfaces in `apps/api/src/providers/ports.ts` give the backend team a starting point. The frontend calls ImPacks endpoints for trading and payment verification.
+The integrated UI retains explicitly simulated pack opening/closing and adds a separate durable testnet checkout path. Privy identity and its embedded wallet remain the account experience; checkout verifies an EIP-191 wallet signature before creating or reading wallet-owned purchases. Category/stake/consent and checkout retry identity are persisted in SQLite. Ethereum Sepolia (11155111) is the only current network; older Base Sepolia evidence in the team log is historical.
 
-The optional [welcome-grant extension](WELCOME_GRANTS.md) adds PostgreSQL persistence and a separate worker specifically for one-time 50-test-AUSD transfers to new Privy users. It is disabled until configured and has not been verified with a live transfer. Grant persistence does not make the existing pack state durable or fund Gemini sandbox balances.
+The category and Dashboard screens connect to receipt verification, immutable selection preparation and sanitized execution/refund status. Gemini public discovery covers nine genres; the opening catalog still offers three editions, with other genres visible as previews. Payment collection, Gemini submission and refund broadcasting remain disabled. Server-owned reports are required before cards are projected as sandbox results. No private internal lease, credential or signed transaction is exposed to the browser.
+
+Welcome grants independently use PostgreSQL and a worker and remain opt-in. They do not fund Gemini or make simulated packs durable. See [integration test handoff](INTEGRATION_TEST.md) and [welcome grants](WELCOME_GRANTS.md).
 
 ## Detailed implementation plan
 

@@ -17,8 +17,8 @@ Open http://localhost:3000. The Next.js App Router frontend proxies `/api` to th
 
 The independent `/api/checkout` flow now persists purchases in SQLite and verifies
 testnet AUSD receipts. It does not issue packs or enable payment collection;
-wallet sessions and durable internal fulfillment authorization are available, while
-issuer integration and live rollout checks remain outstanding. See the
+the current Privy wallet can sign in to checkout, and durable internal fulfillment authorization is available.
+Issuer integration and live rollout checks remain outstanding. See the
 [checkout setup](apps/api/README.md#persistent-checkout-and-verification).
 
 ## Ownership
@@ -32,7 +32,9 @@ issuer integration and live rollout checks remain outstanding. See the
 
 Start with [team roles and status](docs/TEAM.md), [API contract](docs/API.md), and [integration notes](docs/INTEGRATIONS.md). Update the team board in each PR.
 
-Backend build plan: [sandbox treasury, ledger and execution](docs/PAYMENTS_ARCHITECTURE.md), followed by the optional [AUSD execution escrow](docs/ESCROW_SPEC.md). These are researched specifications; pack payments and trading remain unimplemented.
+**Integration branch:** [configuration and integration-test walkthrough](docs/INTEGRATION_TEST.md). The UI now connects the selected category/stake to durable testnet checkout, receipt verification and Dashboard payment history. Transfers and Gemini submissions remain disabled.
+
+Backend build plan: [sandbox treasury, ledger and execution](docs/PAYMENTS_ARCHITECTURE.md), followed by the optional [AUSD execution escrow](docs/ESCROW_SPEC.md). These plans describe the intended full execution system. SQLite receipt verification and execution/refund preparation exist; actual trading and refund transfers remain unimplemented.
 
 Optional [50-test-AUSD welcome grants](docs/WELCOME_GRANTS.md) on **Ethereum Sepolia (11155111)** are implemented and disabled by default. A separate worker funds new, verified Privy users from a dedicated external wallet, with PostgreSQL records preventing duplicate grants. Follow the setup guide to configure server secrets, migrate the database, and run the worker. This does not fund Gemini or enable pack payments.
 

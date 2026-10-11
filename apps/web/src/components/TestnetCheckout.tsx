@@ -120,6 +120,12 @@ export function TestnetCheckout({ packId, budgetCents, accepted }: { packId: Cat
       : <div className={styles.actions}><button className="secondary" disabled={!capabilities?.available || !wallet.address || !current || busy || wallet.checkoutConnecting || (!accepted && !current.attempt) || !budgetCents} onClick={() => void prepare()}>{busy || wallet.checkoutConnecting ? "Connecting checkout…" : current?.attempt ? "Resume saved checkout" : "Prepare testnet checkout"}</button><a href="/dashboard">Payment history ↗</a></div>}
     {current?.attempt && <p className={styles.note}>Saved checkout: {current.attempt.body.budgetCents! / 100} test AUSD. Retrying preserves this amount and purchase identity.</p>}
     {error && <p className={styles.error} role="alert">{error}</p>}
+    {current?.status && current.status.purchase.status !== "pending" && <button className="text-button" disabled={busy} onClick={() => {
+      try {
+        sessionStorage.removeItem(checkoutAttemptKey(wallet.address!, packId));
+        setState({ scope, attempt: null, status: null }); setError("");
+      } catch { setError("Browser storage is unavailable. Your existing purchase is still in payment history."); }
+    }}>Start a new checkout</button>}
     {current?.status && <PurchaseDetails key={`${scope}:${current.status.purchase.purchaseId}`} value={current.status} onUpdate={status => setState(value => value?.scope === scope ? { ...value, status } : value)}/>}
   </section>;
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "../styles.css";
+import { WalletProvider } from "../components/WalletProvider";
 
 export const metadata: Metadata = {
   title: "ImPacks — Gamble on gambling",
@@ -9,5 +10,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#ffffff" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en"><body><WalletProvider>{children}</WalletProvider></body></html>;
 }

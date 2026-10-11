@@ -5,6 +5,7 @@ import { DISCLOSURE, DISCLOSURE_VERSION, type Opening, type Pack, type Quote, ty
 import { api, ApiError } from "./lib/api";
 import { PackCarousel } from "./components/PackCarousel";
 import { LandingHero } from "./components/LandingHero";
+import { WalletAccount } from "./components/WalletAccount";
 import { PredictionCard } from "./components/PredictionCard";
 
 const sessionKey = "impacks.demo.session";
@@ -81,7 +82,7 @@ export function App({ landing = false }: { landing?: boolean }) {
   }
 
   return <main>
-    <header className="site-header"><a className="logo" href="/">im<span>packs</span><sup>®</sup></a><nav aria-label="Main navigation"><a href="#packs">Packs</a><a href="#how">How it works</a>{session && <a href="#collection">Collection</a>}</nav><div className="account"><span className="badge">DEMO</span>{session ? <button className="text-button" onClick={() => void logout()} disabled={busy}>{session.user.displayName} · Log out</button> : <a className="nav-join" href="/login">Log in <span aria-hidden="true">↗</span></a>}</div></header>
+    <header className="site-header"><a className="logo" href="/">im<span>packs</span><sup>®</sup></a><nav aria-label="Main navigation"><a href="#packs">Packs</a><a href="#how">How it works</a>{session && <a href="#collection">Collection</a>}</nav><div className="account"><span className="badge">DEMO</span><WalletAccount/>{session && !session.user.id.startsWith("did:privy:") && <button className="text-button demo-logout" onClick={() => void logout()} disabled={busy}>Exit demo</button>}</div></header>
     {landing ? <LandingHero/> : <section className="pack-page-intro"><p className="eyebrow">A SURPRISE WORTH FOLLOWING</p><h1>Pick your world.</h1><p>One pack. Three predictions. See where they take you.</p></section>}
     {error && <p className="error" role="alert">{error}</p>}
     {packs.length > 0 ? <PackCarousel packs={packs} selected={selected} disabled={busy || !!attempt} onSelect={id => { setSelected(id); setAccepted(false); }} /> : <p className="catalog-loading" role="status">{error ? "The pack catalog is unavailable. Please refresh to try again." : "Unwrapping the collection…"}</p>}

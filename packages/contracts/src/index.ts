@@ -3,7 +3,7 @@ import { z } from "zod";
 export const routes = {
   health: "/api/health", privyLogin: "/api/auth/privy", login: "/api/auth/demo", me: "/api/me",
   logout: "/api/auth/logout", packs: "/api/packs", quotes: "/api/quotes",
-  openings: "/api/openings", portfolio: "/api/portfolio",
+  wallets: "/api/wallets", openings: "/api/openings", portfolio: "/api/portfolio",
 } as const;
 export const DISCLOSURE_VERSION = "random-v1";
 export const DISCLOSURE = "Markets are randomly selected within your theme. Each YES/NO side is chosen with a 50/50 chance. Opening a pack automatically submits the selected positions within your stated budget. Selection is not investment advice or a prediction of returns.";
@@ -48,3 +48,5 @@ export interface ApiErrorBody { error: { code: string; message: string } }
 export const AUSD_BASE_SEPOLIA = {
   chainId: 84532, tokenAddress: "0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC", decimals: 6,
 } as const;
+
+export interface WalletBalance { address: string; chainId: 84532; asset: "AUSD"; tokenAddress: string; balanceAtomic: string; formatted: string; network: "Base Sepolia" }

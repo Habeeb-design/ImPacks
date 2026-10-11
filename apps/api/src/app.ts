@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { readAusdBalance } from "./services/wallet.js";
 import { createPrivyVerifier } from "./privy.js";
 import type { JWTVerifyGetKey } from "jose";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -58,6 +59,7 @@ export function buildApp(options: { mode?: string; providers?: Providers; privyA
     sessions.delete(request.headers.authorization!.slice(7));
     return reply.code(204).send();
   });
+  app.get<{Params:{address:string}}>(`${routes.wallets}/:address/ausd`, async request => readAusdBalance(request.params.address));
   app.get(routes.packs, async () => ({ packs }));
   app.post(routes.quotes, async request => service.quote(user(request.headers.authorization).id, quoteSchema.parse(request.body).packId));
   app.post(routes.openings, async request => {

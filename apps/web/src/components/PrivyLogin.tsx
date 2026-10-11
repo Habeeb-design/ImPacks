@@ -1,9 +1,11 @@
 "use client";
-import { PrivyProvider, usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "../lib/api";
-function SignIn() {
+import { useAccountWallet } from "./WalletProvider";
+export default function PrivyLogin() {
+ const wallet = useAccountWallet();
  const { ready, authenticated, login, logout, getAccessToken } = usePrivy();
  const [error, setError] = useState("");
  const [busy, setBusy] = useState(false);
@@ -28,10 +30,7 @@ function SignIn() {
      void logout().then(() => window.location.replace("/login")).catch(() => { setBusy(false); setError("Could not sign out. Please try again."); });
      return;
    }
-   if (authenticated) void continueToPacks();
- }, [ready, authenticated]);
- return <div className="privy-signin"><button className="primary auth-continue" disabled={!ready || busy} onClick={() => authenticated ? void continueToPacks() : login()}>{!ready ? "Preparing sign in…" : busy ? "Taking you to your packs…" : authenticated ? "Continue to packs" : "Let’s get you in"}<span aria-hidden="true">↗</span></button><p className="signin-methods">Email · Google · Wallet</p>{error && <p className="error" role="alert">{error}</p>}{authenticated && !busy && <button className="text-button" onClick={() => void logout()}>Use another account</button>}<div className="privy-credit">Secured by <strong>privy</strong></div></div>;
-}
-export default function PrivyLogin({ appId }: {appId: string}) {
- return <PrivyProvider appId={appId} config={{appearance:{theme:"light",accentColor:"#171717",landingHeader:"Welcome to ImPacks",loginMessage:"Your next plot twist starts here."},loginMethods:["email","google","wallet"]}}><SignIn/></PrivyProvider>;
+   if (authenticated && wallet.ready && wallet.address) void continueToPacks();
+ }, [ready, authenticated, wallet.ready, wallet.address]);
+ return <div className="privy-signin"><button className="primary auth-continue" disabled={!ready || busy || wallet.creating || (authenticated && !wallet.ready)} onClick={() => authenticated ? (wallet.address ? void continueToPacks() : void wallet.create()) : login()}>{!ready ? "Preparing sign in…" : busy ? "Taking you to your packs…" : authenticated ? (wallet.creating ? "Creating your wallet…" : wallet.address ? "Continue to packs" : "Create my wallet") : "Connect wallet"}<span aria-hidden="true">↗</span></button><p className="signin-methods">Email · Google · Wallet</p>{(error || wallet.error) && <p className="error" role="alert">{error || wallet.error}</p>}{authenticated && !busy && <button className="text-button" onClick={() => void logout()}>Use another account</button>}<div className="privy-credit">Secured by <strong>privy</strong></div></div>;
 }

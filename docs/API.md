@@ -50,3 +50,7 @@ Idempotency and ownership are process-local in this scaffold. They do not surviv
 Payment: `confirmed`, `failed`, `unknown`. Orders: `filled`, `pending`, `failed`, `unknown`. Opening: `completed` if all cards fill, `partial` if some fill, `pending` if unresolved and none fill, otherwise `failed`. Some statuses are reserved for future adapters.
 
 `/api/portfolio` is opening history, including failures; derive holdings only from confirmed fills. Quote budget is an upper limit. Track actual spend, fees and any remainder separately. All current order IDs and payment references begin with `demo-`.
+
+### Public wallet balance
+
+`GET /api/wallets/:address/ausd` reads a valid EVM address on Base Sepolia. Returns WalletBalance (`address`, `chainId:84532`, `asset:"AUSD"`, `tokenAddress`, decimal-string `balanceAtomic`, exact `formatted` string, `network:"Base Sepolia"`). Invalid addresses return 400; RPC/chain/token validation failures return 503. This read does not prove account ownership or authorize payments.

@@ -1,3 +1,7 @@
+import { PipelineStore } from "./pipeline/store.js";
+import { configuredPipeline } from "./pipeline/runtime.js";
+import type { PipelinePolicy } from "./pipeline/ports.js";
+import { paymentAttemptSchema } from "@impacks/contracts";
 import { checkoutStatus } from "./services/checkout-status.js";
 import type { CheckoutCapabilities } from "@impacks/contracts";
 import { isAddress } from "viem";
@@ -34,7 +38,7 @@ import { emptyBodySchema, walletChallengeSchema, walletSignatureSchema, fulfillm
 import { WalletAuthService } from "./services/wallet-auth.js";
 import { FulfillmentService, authorizeFulfillment } from "./services/fulfillment.js";
 
-export function buildApp(options: { postTrade?: PostTradeStore; ephemeralDemo?: boolean; embeddedDemo?: boolean; privyAppId?: string; privyKey?: JWTVerifyGetKey; grants?: GrantApi; mode?: string; providers?: Providers; checkoutRecipientAddress?: string;
+export function buildApp(options: { pipelinePolicy?: PipelinePolicy; postTrade?: PostTradeStore; ephemeralDemo?: boolean; embeddedDemo?: boolean; privyAppId?: string; privyKey?: JWTVerifyGetKey; grants?: GrantApi; mode?: string; providers?: Providers; checkoutRecipientAddress?: string;
   checkoutDatabasePath?: string; paymentVerifier?: PaymentVerifier; appOrigin?: string; internalFulfillmentKey?: string; executionMarkets?: MarketProvider } = {}) {
   if ((options.mode ?? "demo") !== "demo") throw new Error("Only demo mode is wired. Implement verified identity, durable storage, AUSD and Gemini providers before enabling sandbox.");
   const privyAppId = options.privyAppId ?? process.env.PRIVY_APP_ID ?? process.env.NEXT_PUBLIC_PRIVY_APP_ID;
@@ -51,11 +55,12 @@ export function buildApp(options: { postTrade?: PostTradeStore; ephemeralDemo?: 
   }
   const checkoutStore = new CheckoutStore(databasePath);
   app.addHook("onClose", async () => checkoutStore.close());
+  const pipeline = embeddedDemo ? undefined : options.pipelinePolicy ? new PipelineStore(checkoutStore, options.pipelinePolicy) : configuredPipeline(checkoutStore);
   const checkout = new CheckoutService(options.checkoutRecipientAddress ?? process.env.AUSD_RECIPIENT_ADDRESS,
     checkoutStore, options.paymentVerifier ?? configuredPaymentVerifier());
   const walletAuth = new WalletAuthService(checkoutStore, options.appOrigin ?? process.env.APP_ORIGIN);
   const fulfillment = new FulfillmentService(checkoutStore);
-  const refunds = new RefundService(checkoutStore, options.checkoutRecipientAddress ?? process.env.AUSD_RECIPIENT_ADDRESS, configuredRefundVerifier());
+  const refunds = new RefundService(checkoutStore, options.checkoutRecipientAddress ?? process.env.AUSD_RECIPIENT_ADDRESS, configuredRefundVerifier(), pipeline);
   const execution = new ExecutionService(checkoutStore, options.executionMarkets ?? geminiProviders().markets);
   app.addHook("onRequest", async (request, reply) => {
     if ([routes.checkout, "/api/auth/wallet", routes.internalFulfillment].some(path => request.url.startsWith(path))) {
@@ -130,25 +135,27 @@ export function buildApp(options: { postTrade?: PostTradeStore; ephemeralDemo?: 
     let originReady = false;
     try { const raw = options.appOrigin ?? process.env.APP_ORIGIN; const url = new URL(raw ?? ""); originReady = raw === url.origin && (url.protocol === "https:" || (url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))); } catch { /* unavailable */ }
     const available = !embeddedDemo && !!recipient && isAddress(recipient) && !/^0x0{40}$/i.test(recipient) && originReady;
-    return { available, chainId: 11155111, network: "Ethereum Sepolia", paymentEnabled: false,
-      orderSubmissionEnabled: false, refundBroadcastEnabled: false,
-      reason: available ? "Checkout preparation is available. Receipt verification requires configured Ethereum Sepolia RPC access. Trading and refund transfers are not enabled."
+    const paymentEnabled = available && !!verifyPrivy && (pipeline?.ready() ?? false);
+    return { available, chainId: 11155111, network: "Ethereum Sepolia", purchaseMode: pipeline ? "sandbox" : "demo", enabledPackIds: pipeline ? ["crypto"] : ["crypto", "sports", "mixed"], paymentEnabled,
+      orderSubmissionEnabled: paymentEnabled, refundBroadcastEnabled: paymentEnabled,
+      reason: paymentEnabled ? "Testnet payment and sandbox execution are ready. Purchases resume across restarts." : available ? "Checkout preparation is available. Receipt verification requires configured Ethereum Sepolia RPC access. Trading and refund transfers are not enabled."
         : "Testnet checkout needs a standalone API, receiving wallet and configured application origin." };
   });
   app.get(routes.checkout, async request => {
     const identity = walletAuth.authenticate(request.headers.authorization, request.headers.origin);
-    return { purchases: checkoutStore.listOwned(identity.walletAddress).map(purchase => checkoutStatus(checkout, execution, refunds, purchase.purchaseId, identity.walletAddress)) };
+    return { purchases: checkoutStore.listOwned(identity.walletAddress).map(purchase => checkoutStatus(checkout, execution, refunds, purchase.purchaseId, identity.walletAddress, pipeline)) };
   });
   app.get(`${routes.checkout}/:purchaseId/status`, async request => {
     const identity = walletAuth.authenticate(request.headers.authorization, request.headers.origin);
     const { purchaseId } = checkoutParamsSchema.parse(request.params);
-    return checkoutStatus(checkout, execution, refunds, purchaseId, identity.walletAddress);
+    return checkoutStatus(checkout, execution, refunds, purchaseId, identity.walletAddress, pipeline);
   });
   app.post(`${routes.checkout}/:purchaseId/prepare`, async request => {
     const identity = walletAuth.authenticate(request.headers.authorization, request.headers.origin, true);
     emptyBodySchema.parse(request.body);
     const { purchaseId } = checkoutParamsSchema.parse(request.params);
     const purchase = checkout.get(purchaseId, identity.walletAddress);
+    if (pipeline?.row(purchaseId)) return checkoutStatus(checkout, execution, refunds, purchaseId, identity.walletAddress, pipeline);
     if (purchase.status !== "confirmed") throw new HttpError(409, "PAYMENT_REQUIRED", "Verify the payment before preparing predictions.");
     let job;
     try { job = fulfillment.get(purchaseId); } catch (error) { if (!(error instanceof HttpError && error.statusCode === 404)) throw error; }
@@ -158,7 +165,44 @@ export function buildApp(options: { postTrade?: PostTradeStore; ephemeralDemo?: 
       execution.reserve(purchaseId, attempt);
       await execution.prepare(purchaseId, attempt);
     }
-    return checkoutStatus(checkout, execution, refunds, purchaseId, identity.walletAddress);
+    return checkoutStatus(checkout, execution, refunds, purchaseId, identity.walletAddress, pipeline);
+  });
+  async function pipelineOwner(request: { headers: Record<string, unknown> }) {
+    if (!pipeline || !verifyPrivy) throw new HttpError(503, "PIPELINE_DISABLED", "Sandbox purchase processing is not configured.");
+    const token = request.headers["x-privy-token"];
+    if (typeof token !== "string") throw new HttpError(401, "PRIVY_REQUIRED", "Sign in to start a purchase.");
+    return (await verifyPrivy(token)).id;
+  }
+  app.post(`${routes.checkout}/:purchaseId/start`, async request => {
+    const identity = walletAuth.authenticate(request.headers.authorization, request.headers.origin, true);
+    emptyBodySchema.parse(request.body);
+    const { purchaseId } = checkoutParamsSchema.parse(request.params);
+    const owner = await pipelineOwner(request);
+    pipeline!.enqueue(purchaseId, identity.walletAddress, owner);
+    return checkoutStatus(checkout, execution, refunds, purchaseId, identity.walletAddress, pipeline);
+  });
+  app.post(`${routes.checkout}/:purchaseId/payment-intent`, async request => {
+    const identity = walletAuth.authenticate(request.headers.authorization, request.headers.origin, true);
+    emptyBodySchema.parse(request.body);
+    const { purchaseId } = checkoutParamsSchema.parse(request.params);
+    const owner = await pipelineOwner(request);
+    return pipeline!.paymentIntent(purchaseId, identity.walletAddress, owner);
+  });
+  app.post(`${routes.checkout}/:purchaseId/payment-rejected`, async (request, reply) => {
+    const identity = walletAuth.authenticate(request.headers.authorization, request.headers.origin, true);
+    const { purchaseId } = checkoutParamsSchema.parse(request.params);
+    const { attemptId } = paymentAttemptSchema.parse(request.body);
+    if (!pipeline) throw new HttpError(503, "PIPELINE_DISABLED", "Purchase processing is unavailable.");
+    pipeline.rejectPayment(purchaseId, identity.walletAddress, attemptId);
+    return reply.code(204).send();
+  });
+  app.post(`${routes.checkout}/:purchaseId/payment`, async request => {
+    const identity = walletAuth.authenticate(request.headers.authorization, request.headers.origin, true);
+    const { purchaseId } = checkoutParamsSchema.parse(request.params);
+    const { transactionHash } = verifyCheckoutSchema.parse(request.body);
+    if (!pipeline) throw new HttpError(503, "PIPELINE_DISABLED", "Purchase processing is unavailable.");
+    pipeline.paymentHash(purchaseId, identity.walletAddress, transactionHash);
+    return checkoutStatus(checkout, execution, refunds, purchaseId, identity.walletAddress, pipeline);
   });
   app.post(routes.checkout, async (request, reply) => {
     const identity = walletAuth.authenticate(request.headers.authorization, request.headers.origin, true);
@@ -183,6 +227,11 @@ export function buildApp(options: { postTrade?: PostTradeStore; ephemeralDemo?: 
       reply.header("Cache-Control", "no-store");
       authorizeFulfillment(options.internalFulfillmentKey ?? process.env.INTERNAL_FULFILLMENT_KEY, request.headers.authorization, request.headers.origin);
     });
+    internal.addHook("preHandler", async request => {
+      if (request.method !== "GET" && pipeline?.row(checkoutParamsSchema.parse(request.params).purchaseId)) {
+        throw new HttpError(409, "WORKER_MANAGED", "The durable worker owns this purchase's execution and settlement.");
+      }
+    });
     const refundPath = `${routes.internalFulfillment}/:purchaseId/refund`;
     internal.get(refundPath, async request => refunds.get(checkoutParamsSchema.parse(request.params).purchaseId));
     internal.post(`${refundPath}/prepare`, async request => {
@@ -201,7 +250,11 @@ export function buildApp(options: { postTrade?: PostTradeStore; ephemeralDemo?: 
     internal.get(executionPath, async request => execution.get(checkoutParamsSchema.parse(request.params).purchaseId));
     internal.post(`${executionPath}/reserve`, async request => execution.reserve(checkoutParamsSchema.parse(request.params).purchaseId, fulfillmentAttemptSchema.parse(request.body)));
     internal.post(`${executionPath}/prepare`, async request => execution.prepare(checkoutParamsSchema.parse(request.params).purchaseId, fulfillmentAttemptSchema.parse(request.body)));
-    internal.post(`${executionPath}/report`, async request => execution.report(checkoutParamsSchema.parse(request.params).purchaseId, executionReportSchema.parse(request.body)));
+    internal.post(`${executionPath}/report`, async request => {
+      const { purchaseId } = checkoutParamsSchema.parse(request.params);
+      if (pipeline?.row(purchaseId)) throw new HttpError(409, "WORKER_MANAGED", "The durable worker owns this execution.");
+      return execution.report(purchaseId, executionReportSchema.parse(request.body));
+    });
     const path = `${routes.internalFulfillment}/:purchaseId/fulfillment`;
     internal.get(path, async request => fulfillment.get(checkoutParamsSchema.parse(request.params).purchaseId));
     internal.post(`${path}/claim`, async request => fulfillment.claim(checkoutParamsSchema.parse(request.params).purchaseId, fulfillmentClaimSchema.parse(request.body).requestId));

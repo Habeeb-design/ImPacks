@@ -25,7 +25,10 @@
     "check:ausd-payment": "node --env-file-if-exists=.env --import tsx src/diagnostics/ausd-payment.ts",
     "grants:migrate": "node --import tsx --env-file-if-exists=.env src/grants/migrate.ts",
     "grants:worker": "node --import tsx --env-file-if-exists=.env --env-file-if-exists=.env.grants-worker src/grants/run-worker.ts",
-    "grants:worker:prod": "node --env-file-if-exists=.env --env-file-if-exists=.env.grants-worker dist/grants/run-worker.js"
+    "grants:worker:prod": "node --env-file-if-exists=.env --env-file-if-exists=.env.grants-worker dist/grants/run-worker.js",
+    "purchases:worker": "node --import tsx --env-file-if-exists=.env --env-file-if-exists=.env.pipeline-worker src/pipeline/run-worker.ts",
+    "purchases:worker:prod": "node --env-file-if-exists=.env --env-file-if-exists=.env.pipeline-worker dist/pipeline/run-worker.js",
+    "check:purchases": "node --import tsx --env-file-if-exists=.env src/pipeline/check.ts"
   },
   "dependencies": {
     "@impacks/contracts": "*",

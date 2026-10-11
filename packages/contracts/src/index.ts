@@ -97,7 +97,7 @@ export interface CheckoutPurchase {
   status: "pending" | "expired" | "confirmed";
   mode: "ausd-testnet";
   storage: "memory" | "sqlite";
-  paymentEnabled: false;
+  paymentEnabled: boolean;
   updatedAt: string;
   expiredAt: string | null;
   confirmedAt: string | null;
@@ -189,17 +189,25 @@ export interface AusdRefund {
   candidateAtomic: string; authorizedAtomic: string | null;
   recipientAddress: string; treasuryAddress: string; chainId: 11155111; tokenAddress: string;
   executionDigest: string; settlementReference: string | null;
-  blockers: string[]; broadcastEnabled: false; transactionHash: string | null;
+  blockers: string[]; broadcastEnabled: boolean; transactionHash: string | null;
   createdAt: string; updatedAt: string; confirmedAt: string | null;
 }
 
 /** Public status; never includes internal credentials, leases or signed transactions. */
 export interface CheckoutCapabilities {
+  purchaseMode?: "demo" | "sandbox"; enabledPackIds?: string[];
   available: boolean; chainId: 11155111; network: "Ethereum Sepolia";
-  paymentEnabled: false; orderSubmissionEnabled: false; refundBroadcastEnabled: false;
+  paymentEnabled: boolean; orderSubmissionEnabled: boolean; refundBroadcastEnabled: boolean;
   reason: string;
 }
+export const paymentAttemptSchema = z.strictObject({ attemptId: z.string().uuid() });
+export interface PaymentIntent { attemptId: string; purchase: CheckoutPurchase }
+export interface PipelineStatus {
+  state: "awaiting-payment" | "preparing" | "executing" | "reconciliation-required" | "settled" | "refunding" | "completed";
+  message: string; paymentRequested: boolean; paymentHash: string | null;
+}
 export interface CheckoutStatus {
+  pipeline?: PipelineStatus | null;
   purchase: CheckoutPurchase;
   execution: { state: ExecutionState; preparedCards: number; filledCards: number } | null;
   refund: Pick<AusdRefund, "state" | "candidateAtomic" | "authorizedAtomic" | "transactionHash" | "broadcastEnabled"> | null;

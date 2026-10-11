@@ -1,13 +1,14 @@
 "use client";
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { PrivyProvider, usePrivy, useWallets, useCreateWallet } from "@privy-io/react-auth";
-import type { WalletSession } from "@impacks/contracts";
+import type { WalletSession, CheckoutPurchase } from "@impacks/contracts";
+import { checkoutTransaction } from "../lib/payment";
 import { toHex } from "viem";
 import { validateCheckoutChallenge } from "../lib/checkout";
 import { sepolia } from "viem/chains";
 import { api } from "../lib/api";
-type WalletState = { checkoutToken: string | null; checkoutConnecting: boolean; authorizeCheckout: () => Promise<string>; invalidateCheckout: () => void; configured: boolean; authReady: boolean; userId: string | null; getAccessToken: () => Promise<string | null>; ready: boolean; authenticated: boolean; address: string | null; embedded: boolean; creating: boolean; error: string; create: () => Promise<void>; disconnect: () => Promise<void> };
-const WalletContext = createContext<WalletState>({ checkoutToken:null, checkoutConnecting:false, authorizeCheckout:async()=>{throw new Error("Sign in to connect your wallet.");}, invalidateCheckout:()=>{}, configured:false, authReady:false, userId:null, getAccessToken:async()=>null, ready:false, authenticated:false, address:null, embedded:false, creating:false, error:"", create:async()=>{}, disconnect:async()=>{} });
+type WalletState = { sendCheckoutPayment: (purchase: CheckoutPurchase) => Promise<string>; checkoutToken: string | null; checkoutConnecting: boolean; authorizeCheckout: () => Promise<string>; invalidateCheckout: () => void; configured: boolean; authReady: boolean; userId: string | null; getAccessToken: () => Promise<string | null>; ready: boolean; authenticated: boolean; address: string | null; embedded: boolean; creating: boolean; error: string; create: () => Promise<void>; disconnect: () => Promise<void> };
+const WalletContext = createContext<WalletState>({ sendCheckoutPayment: async()=>{throw new Error("Wallet is unavailable.");}, checkoutToken:null, checkoutConnecting:false, authorizeCheckout:async()=>{throw new Error("Sign in to connect your wallet.");}, invalidateCheckout:()=>{}, configured:false, authReady:false, userId:null, getAccessToken:async()=>null, ready:false, authenticated:false, address:null, embedded:false, creating:false, error:"", create:async()=>{}, disconnect:async()=>{} });
 export const useAccountWallet = () => useContext(WalletContext);
 function WalletStateProvider({ children }: {children: ReactNode}) {
  const { ready, authenticated, user, getAccessToken, logout } = usePrivy();
@@ -44,6 +45,19 @@ function WalletStateProvider({ children }: {children: ReactNode}) {
    pending.current = task;
    try { return await task; } finally { pending.current = null; setCheckoutConnecting(false); }
  }
+ async function sendCheckoutPayment(purchase: CheckoutPurchase): Promise<string> {
+   if (!wallet || !authenticated) throw new Error("Connect your payment wallet first.");
+   const captured = owner;
+   const transaction = checkoutTransaction(purchase, wallet.address);
+   await wallet.switchChain(sepolia.id);
+   const provider = await wallet.getEthereumProvider();
+   const chainId = await provider.request({ method: "eth_chainId" });
+   if (Number(chainId) !== sepolia.id || identity.current !== captured) throw new Error("Wallet or network changed before payment.");
+   // The explicit user action opens the wallet confirmation. Never retry this request automatically.
+   const hash = await provider.request({ method: "eth_sendTransaction", params: [transaction] });
+   if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new Error("Wallet payment result is uncertain. Check wallet history before retrying.");
+   return hash;
+ }
  async function create() {
    if (creating) return;
    setCreating(true); setError("");
@@ -61,7 +75,7 @@ function WalletStateProvider({ children }: {children: ReactNode}) {
      window.location.assign("/");
    } catch { setError("Could not disconnect. Please try again."); }
  }
- return <WalletContext.Provider value={{checkoutToken,checkoutConnecting,authorizeCheckout,invalidateCheckout,configured:true,authReady:ready,userId:user?.id ?? null,getAccessToken,ready:ready && walletsReady,authenticated,address:wallet?.address ?? null,embedded:wallet?.walletClientType === "privy",creating,error,create,disconnect}}>{children}</WalletContext.Provider>;
+ return <WalletContext.Provider value={{sendCheckoutPayment,checkoutToken,checkoutConnecting,authorizeCheckout,invalidateCheckout,configured:true,authReady:ready,userId:user?.id ?? null,getAccessToken,ready:ready && walletsReady,authenticated,address:wallet?.address ?? null,embedded:wallet?.walletClientType === "privy",creating,error,create,disconnect}}>{children}</WalletContext.Provider>;
 }
 export function WalletProvider({children}: {children: ReactNode}) {
  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;

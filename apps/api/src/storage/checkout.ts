@@ -24,7 +24,7 @@ export class CheckoutStore {
     if (this.storage === "sqlite") mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(path, { timeout: 5000 });
     const version = this.db.prepare("PRAGMA user_version").get()!.user_version as number;
-    if (version > 5) { this.db.close(); throw new Error("Unsupported checkout database schema version."); }
+    if (version > 6) { this.db.close(); throw new Error("Unsupported checkout database schema version."); }
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA synchronous = FULL;
@@ -101,7 +101,34 @@ export class CheckoutStore {
           owner_wallet TEXT NOT NULL, request_key TEXT NOT NULL, fingerprint TEXT NOT NULL,
           purchase_id TEXT NOT NULL REFERENCES checkout_purchases(id), PRIMARY KEY(owner_wallet, request_key)
         );
-        PRAGMA user_version = 5;
+        CREATE TABLE IF NOT EXISTS pipeline_accounts (
+          account_key TEXT PRIMARY KEY, capacity INTEGER NOT NULL, fee_bps INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS pipeline_jobs (
+          purchase_id TEXT PRIMARY KEY REFERENCES checkout_purchases(id),
+          account_key TEXT NOT NULL REFERENCES pipeline_accounts(account_key),
+          owner_id TEXT NOT NULL, state TEXT NOT NULL, message TEXT NOT NULL DEFAULT '',
+          reserved_cents INTEGER NOT NULL, spent_cents INTEGER,
+          payment_attempt TEXT, payment_hash TEXT COLLATE NOCASE UNIQUE,
+          lease_token TEXT, lease_until INTEGER NOT NULL DEFAULT 0,
+          opening_json TEXT, settlement_json TEXT, updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS pipeline_wallet_owners (
+          wallet TEXT PRIMARY KEY COLLATE NOCASE, owner_id TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS pipeline_submissions (
+          client_order_id TEXT PRIMARY KEY REFERENCES sandbox_order_intents(client_order_id),
+          purchase_id TEXT NOT NULL REFERENCES pipeline_jobs(purchase_id),
+          observation_json TEXT, attempted_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS pipeline_nonces (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
+        CREATE TABLE IF NOT EXISTS pipeline_heartbeats (
+          account_key TEXT PRIMARY KEY, ready_until INTEGER NOT NULL, message TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS pipeline_refund_nonces (
+          purchase_id TEXT PRIMARY KEY REFERENCES pipeline_jobs(purchase_id), nonce INTEGER NOT NULL UNIQUE
+        );
+        PRAGMA user_version = 6;
       `);
       for (const table of ["wallet_sessions", "wallet_challenges"]) {
         if (!this.db.prepare(`PRAGMA table_info(${table})`).all().some(column => column.name === "chain_id")) this.db.exec(`ALTER TABLE ${table} ADD COLUMN chain_id INTEGER`);

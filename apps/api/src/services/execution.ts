@@ -10,7 +10,7 @@ const budgets = { starter: 100, premium: 300, ultimate: 500 } as const;
 const conflict = (message: string): never => { throw new HttpError(409, "EXECUTION_CONFLICT", message); };
 /** Preparation/accounting only. There is intentionally no exchange submission capability. */
 export class ExecutionService {
-  constructor(private store: CheckoutStore, private markets: MarketProvider) {}
+  constructor(private store: CheckoutStore, private markets: MarketProvider, private feeReserveBps?: number) {}
 
   private authorize(purchaseId: string, input: FulfillmentAttemptRequest) {
     const job = new FulfillmentService(this.store).get(purchaseId);
@@ -62,9 +62,16 @@ export class ExecutionService {
       if (value.orders.length) return value;
       const cards = drawCards(markets, value.pack);
       value.orders = cards.map(card => {
-        // Preparation-only allowance, NOT a verified Gemini fee schedule. Submission stays disabled.
-        const feeReserveCents = Math.ceil(card.allocationCents / 10);
-        const quantity = Math.floor((card.allocationCents - feeReserveCents) / card.priceCents);
+        // Legacy preparation allowance; the worker supplies an explicit fee ceiling, not a fee estimate.
+        let feeReserveCents = Math.ceil(card.allocationCents / 10);
+        let quantity = Math.floor((card.allocationCents - feeReserveCents) / card.priceCents);
+        if (this.feeReserveBps !== undefined) {
+          quantity = Math.floor(card.allocationCents * 10000 / (card.priceCents * (10000 + this.feeReserveBps)));
+          feeReserveCents = Math.ceil(quantity * card.priceCents * this.feeReserveBps / 10000);
+          while (quantity > 0 && quantity * card.priceCents + feeReserveCents > card.allocationCents) {
+            quantity--; feeReserveCents = Math.ceil(quantity * card.priceCents * this.feeReserveBps / 10000);
+          }
+        }
         if (quantity < 1) conflict("Budget cannot fund three whole contracts plus fee allowances; no selection committed.");
         return { clientOrderId: randomUUID(), card, quantity, limitPriceCents: card.priceCents,
           feeReserveCents, reservedCents: quantity * card.priceCents + feeReserveCents,
@@ -108,9 +115,10 @@ export class ExecutionService {
         || input.feeCents > target.feeReserveCents || input.costCents + input.feeCents > target.reservedCents;
       Object.assign(target, Object.fromEntries(fields.map(key => [key, input[key]])), { revision: input.revision });
       target.card.order = { id: target.exchangeOrderId,
-        status: target.state === "filled" ? "filled" : target.state === "unknown" ? "unknown"
+        status: (["filled", "cancelled"].includes(target.state) && target.filledQuantity > 0) ? "filled" : target.state === "unknown" ? "unknown"
           : ["cancelled", "rejected"].includes(target.state) ? "failed" : "pending",
         quantity: target.filledQuantity, spentCents: target.costCents };
+      if (target.card.order.status === "filled") target.card.position = { status: "open", remainingQuantity: target.filledQuantity, costBasisCents: target.costCents };
       const unknown = value.orders.some(order => order.state === "unknown");
       const terminal = value.orders.every(order => ["filled", "cancelled", "rejected"].includes(order.state));
       const anyFill = value.orders.some(order => order.filledQuantity > 0);

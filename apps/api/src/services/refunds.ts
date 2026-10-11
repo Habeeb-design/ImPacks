@@ -6,11 +6,11 @@ import { ExecutionService } from "./execution.js";
 import { HttpError } from "../errors.js";
 
 export interface FinalSettlement {
-  reference: string; executionDigest: string; feesReconciled: true; ordersFinalized: true;
+  spentAtomic?: string; reference: string; executionDigest: string; feesReconciled: true; ordersFinalized: true;
   noFurtherOrders: true; paymentRevalidated: true;
 }
-/** Future trusted reconciler must verify exchange evidence and revalidate the original payment.
- * No HTTP body/env flag may provide this attestation. Default production wiring returns null. */
+/** Trusted reconciler verifies exchange evidence and revalidates the original payment.
+ * No HTTP body/env flag may provide this attestation. Disabled pipeline wiring returns null. */
 export interface SettlementAuthority { readFinal(execution: SandboxExecution): FinalSettlement | null }
 export interface RefundVerifier { verify(refund: AusdRefund): Promise<PaymentEvidence> }
 export const executionDigest = (value: SandboxExecution) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -62,6 +62,12 @@ export class RefundService {
     if (!this.treasury || !same(this.treasury, purchase.recipientAddress)) account.blockers.push("TREASURY_NOT_CONFIGURED_OR_CHANGED");
     const digest = executionDigest(execution);
     const final = this.authority.readFinal(execution);
+    if (final?.spentAtomic !== undefined) {
+      if (!/^\d+$/.test(final.spentAtomic)) blocked("Invalid final cost precision.");
+      const exact = BigInt(purchase.amountAtomic) - BigInt(final.spentAtomic);
+      if (exact < 0n) account.blockers.push("SPENDING_EXCEEDS_DEPOSIT");
+      account.candidateAtomic = (exact > 0n ? exact : 0n).toString();
+    }
     if (!final || final.executionDigest !== digest || !final.reference || final.feesReconciled !== true ||
       final.ordersFinalized !== true || final.noFurtherOrders !== true || final.paymentRevalidated !== true) account.blockers.push("AUTHORITATIVE_SETTLEMENT_REQUIRED");
     return { purchase, execution, account, digest, final };
@@ -108,7 +114,7 @@ export class RefundService {
       value: "0", data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer",
         args: [getAddress(value.recipientAddress), BigInt(value.authorizedAtomic!)] }), broadcastEnabled: false as const };
   }
-  /** Future server-side signer handoff ONLY; not exposed by any HTTP endpoint.
+  /** Server-side signer handoff ONLY; not exposed by any HTTP endpoint.
    * Signed identity and nonce commit before any possible network submission. */
   async stageSigned(id: string, serialized: Hex): Promise<AusdRefund> {
     if (!/^0x02(?:[0-9a-fA-F]{2})+$/.test(serialized)) blocked("Only signed EIP-1559 testnet transactions are supported.");

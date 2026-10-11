@@ -1,0 +1,16 @@
+{
+  "name": "impacks", "version": "0.1.0", "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=24 <25", "npm": ">=11" },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,magenta \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:web": "npm run dev -w @impacks/web",
+    "dev:api": "npm run dev -w @impacks/api",
+    "build": "npm run build -w @impacks/contracts && npm run build -w @impacks/api && npm run build -w @impacks/web",
+    "pretypecheck": "npm run build -w @impacks/contracts",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test -w @impacks/api",
+    "start:api": "npm run start -w @impacks/api"
+  },
+  "devDependencies": { "concurrently": "^9.2.1", "typescript": "^5.9.3", "@types/node": "^24.10.0" }
+}

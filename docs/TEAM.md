@@ -114,3 +114,9 @@ Replaced provider selection with a direct email field and Privy one-time-code ve
 - Replaced the generic category pictograms with actual Democratic/Republican party, Federal Reserve, Shell, eBay, Spotify, NVIDIA, and NOAA logo assets. Existing crypto and sports marks remain in the animated layout.
 - Logo sources and color adaptations are recorded in `apps/web/public/images/brands/SOURCES.md`; SVGs are served locally. Removed the unused `CategorySymbol` component.
 - Verified all 14 images load on desktop (1440px) and mobile (390px), with no horizontal overflow. Typecheck, all 15 API tests, and production build pass.
+
+### Logo collage pack editions (2026-10-11)
+
+- Replaced the central IM shield with real logo overlays on the shared pack artwork. Crypto uses BTC/ETH, Sports uses NFL/NBA/MLB/WNBA, and Chaos combines crypto, sports, tech, culture and business marks. Each wrapper reads Crypto Edition, Sports Edition or Chaos Edition. Catalog data, prices, and opening behavior are unchanged.
+- Built-in imagegen removed the shield from a sibling foil asset; original artwork is preserved. Logos and edition typography remain HTML/CSS overlays. Asset provenance and exact generation prompt: `apps/web/public/images/PACK-ARTWORK.md`.
+- Typecheck, all 15 API tests, and production build pass. Desktop/mobile catalog and desktop login fan visually checked; all pack assets load and mobile has no horizontal page overflow.

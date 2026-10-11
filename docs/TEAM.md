@@ -104,3 +104,7 @@ AUSD settlement remains blocked on the project receiving wallet and durable paye
 ## October 11 category symbol expansion
 
 Added original SVG illustrations for Politics, Economics, Commodities, Business, Culture, Tech and Weather to the floating landing-page composition alongside the six existing crypto/sports marks. Desktop and 390px mobile positioning preserve the central headline and CTA; reduced-motion styling applies to the new symbols. This is a visual category expansion only, not a change to the available pack catalog or market providers. Typecheck, 15 API tests and production build pass; desktop/mobile composition checked with no horizontal overflow.
+
+## October 11 email-only sign-in
+
+Replaced provider selection with a direct email field and Privy one-time-code verification on `/login`. Removed Google and external-wallet login options from provider configuration and screen copy. Resend/change-email/retry states are included. Because Privy custom email authentication bypasses modal automatic wallet creation, the page explicitly creates an embedded wallet once after verified login, with a manual retry on failure, before the existing verified session exchange. No wallet is created before authentication. Existing wallet menu and AUSD balances are retained. Full OTP delivery/authentication requires a user-supplied email and remains unverified end-to-end.

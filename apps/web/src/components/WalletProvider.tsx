@@ -33,5 +33,5 @@ function WalletStateProvider({ children }: {children: ReactNode}) {
 export function WalletProvider({children}: {children: ReactNode}) {
  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
  if (!appId) return <>{children}</>;
- return <PrivyProvider appId={appId} config={{appearance:{theme:"light",accentColor:"#171717",landingHeader:"Your ImPacks wallet",loginMessage:"Sign in to create your wallet and explore AUSD packs."},loginMethods:["email","google","wallet"],defaultChain:baseSepolia,supportedChains:[baseSepolia],embeddedWallets:{ethereum:{createOnLogin:"all-users"}}}}><WalletStateProvider>{children}</WalletStateProvider></PrivyProvider>;
+ return <PrivyProvider appId={appId} config={{appearance:{theme:"light",accentColor:"#171717",landingHeader:"Your ImPacks wallet",loginMessage:"Sign in to create your wallet and explore AUSD packs."},loginMethods:["email"],defaultChain:baseSepolia,supportedChains:[baseSepolia],embeddedWallets:{ethereum:{createOnLogin:"all-users"}}}}><WalletStateProvider>{children}</WalletStateProvider></PrivyProvider>;
 }

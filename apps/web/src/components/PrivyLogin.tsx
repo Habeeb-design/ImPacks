@@ -3,6 +3,7 @@ import { useLoginWithEmail, usePrivy } from "@privy-io/react-auth";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "../lib/api";
+import { postLoginPath } from "../lib/account-session";
 import { useAccountWallet } from "./WalletProvider";
 
 export default function PrivyLogin() {
@@ -49,8 +50,10 @@ export default function PrivyLogin() {
      if (!token) throw new Error("Please sign in again to continue.");
      const session = await api.privyLogin(token);
      sessionStorage.setItem("impacks.demo.session", JSON.stringify(session));
-     sessionStorage.removeItem("impacks.demo.attempt");
-     router.replace("/packs");
+     let pending: {userId?: string} | null = null;
+     try { pending = JSON.parse(sessionStorage.getItem("impacks.demo.attempt") ?? "null"); } catch { /* Discard malformed recovery state. */ }
+     if (pending?.userId !== session.user.id) sessionStorage.removeItem("impacks.demo.attempt");
+     router.replace(postLoginPath(new URLSearchParams(window.location.search).get("next")));
    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not finish signing in."); exchanging.current=false; setBusy(false); }
  }
  useEffect(() => {

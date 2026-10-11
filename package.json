@@ -9,7 +9,7 @@
     "build": "npm run build -w @impacks/contracts && npm run build -w @impacks/api && npm run build -w @impacks/web",
     "pretypecheck": "npm run build -w @impacks/contracts && npm run build -w @impacks/api",
     "typecheck": "npm run typecheck --workspaces",
-    "test": "npm run test -w @impacks/api",
+    "test": "npm run test -w @impacks/api && npm run test -w @impacks/web",
     "start:api": "npm run start -w @impacks/api",
     "start:web": "npm run start -w @impacks/web"
   },

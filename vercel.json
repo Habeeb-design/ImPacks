@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "cd ../.. && npm ci",
+  "env": {
+    "IMPACKS_EMBEDDED_DEMO": "1",
+    "APP_MODE": "demo",
+    "NEXT_PUBLIC_PRIVY_APP_ID": "cmv4apc09016w0gl3f5mbxdcz"
+  }
+}

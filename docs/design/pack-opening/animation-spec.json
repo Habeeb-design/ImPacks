@@ -1,0 +1,98 @@
+{
+  "title": "ImPacks progressive foil tear draft",
+  "status": "Interactive motion prototype; production integration pending",
+  "durationMs": 5400,
+  "wrapper": "assets/selected-wrapper.png",
+  "webWrapper": "assets/selected-wrapper.webp",
+  "assetSource": "Exact user-supplied black-and-gold ImPacks wrapper, October 11, 2026. PNG preserved; WebP encodes the same artwork with alpha.",
+  "beats": [
+    {
+      "name": "Slow tension",
+      "startMs": 0,
+      "endMs": 1450,
+      "motion": "Subtle foil wobble, scale and perspective tilt"
+    },
+    {
+      "name": "First tear",
+      "startMs": 1450,
+      "endMs": 2150,
+      "motion": "Tear advances from the left notch to 22% width along an irregular one-pixel edge; the untouched right side stays sealed"
+    },
+    {
+      "name": "Second pull",
+      "startMs": 2300,
+      "endMs": 2920,
+      "motion": "Tear advances to 65%; released foil curls in a textured 3D surface, showing metallic underside and local creases"
+    },
+    {
+      "name": "Fast final rip",
+      "startMs": 3050,
+      "endMs": 3370,
+      "motion": "Tear accelerates across the remaining width; detached strip releases from 3370ms and clears by 3660ms"
+    },
+    {
+      "name": "Rarity bloom",
+      "startMs": 3040,
+      "endMs": 3550,
+      "motion": "Colored light, rays, expanding ring and finite particles"
+    },
+    {
+      "name": "Lift out",
+      "startMs": 3270,
+      "endMs": 4280,
+      "motion": "Card lifts toward upright; wrapper drops away; card visible from 3480ms"
+    },
+    {
+      "name": "Face-up flip",
+      "startMs": 4010,
+      "endMs": 4970,
+      "motion": "Card turns 180 degrees around Y while settling upright"
+    },
+    {
+      "name": "Settle",
+      "startMs": 4970,
+      "endMs": 5400,
+      "motion": "Hold readable card with soft residual aura"
+    }
+  ],
+  "easing": {
+    "tear": "cubic ease-out",
+    "liftAndFlip": "smoothstep",
+    "tension": "smoothstep"
+  },
+  "previewRarityColors": {
+    "common": "silver",
+    "rare": "blue",
+    "epic": "violet",
+    "legendary": "gold"
+  },
+  "rarityCaveat": "Illustrative visual treatments only. Current contracts do not define rarity or rarity odds. Do not infer rarity from market probability or order status.",
+  "controls": [
+    "play",
+    "pause",
+    "resume",
+    "replay",
+    "skip",
+    "timeline scrub",
+    "chapter jump",
+    "rarity preview"
+  ],
+  "accessibility": "Native keyboard controls and phase announcements. Reduced-motion playback jumps to the final card. Manual chapter selection shows static states.",
+  "productionHandoff": "Animate only returned, server-selected cards. Replay must never repeat a purchase or draw. Preserve quote ownership, retry identity and actual order status. This draft shows one illustrative card; integrate the three returned cards separately.",
+  "audio": "None in this draft",
+  "tearing": {
+    "direction": "left-to-right",
+    "edgeStepPx": 1,
+    "path": "Deterministic multiscale jagged edge with short laminate fibers",
+    "deformation": "Perspective-projected textured foil mesh with depth sorting, curling cross sections, surface lighting and silver back face",
+    "attachment": "Only traversed columns detach; all remaining columns retain their original positions",
+    "release": "Strip flies away only after the tear reaches the right edge",
+    "scope": "Visual approximation of flexible foil; not a physical fracture simulation"
+  },
+  "verification": [
+    "Script syntax checked",
+    "First and second partial tears visually inspected",
+    "Full playback, replay and pause checked",
+    "Keyboard timeline scrub and rarity preview checked"
+  ]
+}

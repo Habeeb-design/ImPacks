@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ImPacks — card pack UI references</title>
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#f5f5f1,#111215);--fg:light-dark(#202227,#eeeff1);--muted:light-dark(#565d67,#aeb4be);--line:light-dark(#d4d7da,#34383f);--link:light-dark(#2449ae,#aabaff)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,sans-serif}main{max-width:1100px;margin:auto;padding:48px 24px 80px}h1{font-size:clamp(32px,5vw,56px);line-height:1.08;letter-spacing:-.04em;margin:12px 0 24px}h2{margin:48px 0 16px;font-size:26px}h3{font-size:20px;margin:16px 0 8px}p{max-width:78ch}a{color:var(--link);text-underline-offset:3px}.eyebrow{letter-spacing:.12em;text-transform:uppercase;font-size:12px;color:var(--muted)}.lead{font-size:20px;max-width:65ch}.muted,figcaption{color:var(--muted)}nav{display:flex;flex-wrap:wrap;gap:12px 24px;padding:20px 0;border-block:1px solid var(--line)}figure{margin:24px 0}figure img{display:block;width:100%;height:auto;border-radius:12px}figcaption{font-size:13px;margin-top:8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:32px}.grid>*{min-width:0}.assets img{width:100%;height:230px;object-fit:contain;background:#ebedf0}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:640px}th,td{text-align:left;vertical-align:top;padding:14px 12px;border-bottom:1px solid var(--line)}th{font-size:13px}code{font-size:13px;overflow-wrap:anywhere}li{margin:8px 0}.rule{border-top:1px solid var(--line);padding-top:16px}details{border-block-end:1px solid var(--line);padding:16px 0}summary{cursor:pointer;font-weight:600}footer{margin-top:48px;border-top:1px solid var(--line);padding-top:20px;font-size:13px;color:var(--muted)}@media(max-width:650px){main{padding:24px 16px 48px}.grid{grid-template-columns:1fr}h2{margin-top:32px}}
+</style>
+<main>
+<header><div class="eyebrow">ImPacks / Design research / 11 October 2026</div>
+<h1>Make the pack feel collectible.<br>Make the position easy to read.</h1>
+<p class="lead">Recommended direction: Courtyard’s product display, a Pocket-inspired reveal sequence, and Top Shot’s collection browsing. Use a restrained foil effect on original ImPacks artwork.</p>
+<p class="muted">Research and downloaded references for the existing React/Vite starter. Recommendations below are design proposals; the app has not been redesigned or connected to these libraries.</p></header>
+<nav aria-label="Research sections"><a href="#references">Product references</a><a href="#downloads">Downloaded UI packs</a><a href="#recipe">ImPacks UX recipe</a><a href="#handoff">Implementation notes</a></nav>
+
+<section id="references"><h2>Product references to adapt</h2>
+<article><h3>Courtyard — strongest overall web reference</h3>
+<p>The inspected catalog uses a dark shell, large pack artwork, category navigation, and visible purchase prices. Its detail screen puts one pack in the center, with a distribution control and purchase action close by. <a href="https://courtyard.io/vending-machine">Catalog</a> · <a href="https://courtyard.io/vending-machine/pkmn-fire-and-electric">Pack detail</a></p>
+<p><strong>Adapt:</strong> Give each ImPacks theme a physical-looking wrapper, a consistent silhouette, and one clear price. Keep the MVP’s three themes visible together; a large promotional carousel is unnecessary.</p>
+<figure><a href="screenshots/courtyard-detail.jpg"><img src="screenshots/courtyard-detail.jpg" alt="Courtyard pack detail: centered Fire and Electric pack, distribution control, quantity choices and purchase button"></a><figcaption>Actual public screen captured during this research. Prices and offers are a dated snapshot.</figcaption></figure>
+<details><summary>View the catalog screenshot</summary><figure><img src="screenshots/courtyard-packs.jpg" alt="Courtyard catalog with a large pack banner, left navigation and category tabs"></figure></details>
+</article>
+<article><h3>NBA Top Shot — collection and catalog structure</h3>
+<p>The live marketplace separates Moments, Packs, and Rewards. Pack browsing includes search, sorting, filters, and grid/table controls. The pack tiles keep artwork prominent. <a href="https://nbatopshot.com/search/packs">Pack marketplace</a> · <a href="https://support.nbatopshot.com/hc/en-us/articles/21194143434003-Pack-Marketplace">Official guide</a></p>
+<p><strong>Adapt:</strong> Start with a card grid for My Collection; add a compact position table when collections grow. Filter by theme and execution status. ImPacks has no defined rarity system, so use its real market and order fields instead of rarity badges.</p>
+<figure><a href="screenshots/topshot-market.jpg"><img src="screenshots/topshot-market.jpg" alt="NBA Top Shot pack marketplace with filter sidebar, search, sorting, grid toggle, and pack artwork"></a><figcaption>Actual public marketplace screenshot; product availability changes.</figcaption></figure>
+</article>
+<div class="grid">
+<article><h3>Pokémon TCG Pocket — reveal and collection inspiration</h3><p>Official materials center on opening boosters, immersive cards, and displaying collections in binders and boards. This is a mobile-game reference, not a reusable web UI kit. <a href="https://tcgpocket.pokemon.com/en-us/">Official site and trailers</a> · <a href="https://www.pokemon.com/uk/strategy/a-guide-to-collecting-cards-and-using-wonder-picks-in-pokemon-trading-card-game-pocket">Collecting guide</a></p><p><strong>Adapt:</strong> A pack-focused opening stage followed by three individual card reveals and a collection summary. This proposed sequence is inspired by the product; a signed-in game session was not tested.</p></article>
+<article><h3>EA FC Ultimate Team — probabilities at the decision point</h3><p>EA documents a “Show Pack Probabilities” option under eligible store packs, with probability categories explained before purchase. <a href="https://www.ea.com/seed/news/fc-pack-probabilities">Official probabilities documentation</a></p><p><strong>Adapt:</strong> Put “How selection works” beside the ImPacks action: three distinct markets, equal selection within the eligible pool, and a 50/50 side assignment. Clearly distinguish selection odds from a market’s implied outcome probability.</p></article>
+</div>
+<article><h3>Pokémon Cards CSS — foil finish study</h3><p>Simon Goellner’s demo shows pointer-driven tilt, glare, layered gradients, and several holographic finishes. <a href="https://poke-holo.simey.me/">Interactive demo</a> · <a href="https://github.com/simeydotme/pokemon-cards-css">Source / GPL-3.0</a></p><p><strong>Adapt:</strong> Study how light moves across the card. This is a visual reference only in this bundle; its source and Pokémon art are not imported. Use the downloaded MIT card effects or an original CSS treatment for ImPacks.</p><figure><img src="screenshots/holographic-cards.jpg" alt="Simon Goellner's holographic card demo with illuminated Pikachu card"><figcaption>Actual reference screenshot; third-party artwork is for design review.</figcaption></figure></article>
+</section>
+
+<section id="downloads"><h2>Downloaded UI packs and components</h2>
+<div class="grid assets">
+<article><h3>Kenney UI Pack 2.0</h3><img src="downloads/kenney-ui.png" alt="Kenney UI Pack preview showing buttons, sliders, panels, and interface controls"><p>430 advertised assets for interface controls. Useful for a playful game-like prototype; less suited to the final premium trading-card finish. <a href="https://kenney.nl/assets/ui-pack">Official page</a></p><p><a href="downloads/kenney-ui-pack.zip" download>Download local ZIP</a> · <a href="downloads/kenney-ui-license.txt">CC0 license</a></p></article>
+<article><h3>Kenney Playing Cards Pack</h3><img src="downloads/kenney-cards.png" alt="Kenney playing cards asset preview"><p>270 advertised assets. Useful for placeholder card backs, dimensions, stacks, and simple flip experiments. Replace playing-card faces with original market cards. <a href="https://kenney.nl/assets/playing-cards-pack">Official page</a></p><p><a href="downloads/kenney-playing-cards.zip" download>Download local ZIP</a> · <a href="downloads/kenney-cards-license.txt">CC0 license</a></p></article>
+</div>
+<h3>Magic UI — recommended source components</h3><p>Three React components downloaded from a pinned upstream commit. The <a href="downloads/magicui/LICENSE.md">MIT notice</a> is included. These are reference source files, not installed dependencies.</p>
+<div class="table-wrap"><table><thead><tr><th>Component</th><th>Use in ImPacks</th><th>Files and preview</th></tr></thead><tbody>
+<tr><td>Glare Hover</td><td>A brief foil sheen on the pack or revealed card. Best first effect to adapt.</td><td><a href="downloads/magicui/glare-hover.tsx">Local source</a> · <a href="https://magicui.design/docs/components/glare-hover">Live preview</a></td></tr>
+<tr><td>Magic Card</td><td>Pointer-following light on the selected pack. Keep the static selection state visible on touch.</td><td><a href="downloads/magicui/magic-card.tsx">Local source</a> · <a href="https://magicui.design/docs/components/magic-card">Live preview</a></td></tr>
+<tr><td>Shine Border</td><td>A single accent around the selected pack or newly revealed item.</td><td><a href="downloads/magicui/shine-border.tsx">Local source</a> · <a href="downloads/magicui/shine-border.registry.json">Animation config</a> · <a href="https://magicui.design/docs/components/shine-border">Live preview</a></td></tr>
+</tbody></table></div>
+<p class="muted">Also shortlisted: <a href="https://ui.aceternity.com/components/3d-card-effect">Aceternity 3D Card Effect</a> for depth and tilt. Link only; it was not downloaded and its license was not verified during this pass.</p>
+<p><a href="downloads/manifest.json">Download manifest</a> records original URLs, licenses, retrieval date, SHA-256 checksums, and the Magic UI commit. Both ZIP archives passed integrity checks.</p>
+</section>
+
+<section id="recipe"><h2>Recommended ImPacks flow</h2>
+<p>These are proposed product decisions based on the repository’s existing MVP contract, not claims about competitor behavior.</p>
+<ol>
+<li><strong>Choose a theme.</strong> Three tall wrappers for Crypto, Sports, and the third configured theme. Every tile shows “3 random picks,” “15 AUSD,” and a visible Demo label. Selection adds a clear outline and check indicator; glow is optional.</li>
+<li><strong>Review the opening.</strong> Show total cost, three allocations, eligible market pool, side assignment, fees, and possible unspent remainder. Explain the current demo/testnet/sandbox separation using the app’s actual mode.</li>
+<li><strong>Confirm and wait.</strong> Distinguish payment processing, market selection, and order execution. Persist the server’s opening ID so a retry or reload resumes that opening.</li>
+<li><strong>Reveal the stored result.</strong> Center the wrapper, open it, then reveal three cards individually. Always provide Reveal all and a reduced-motion path. Animation timing and pointer position must never change the selected markets or sides.</li>
+<li><strong>Read each position.</strong> Put the full question and YES/NO first; then entry price, executed quantity, actual spend, and fill status. Preserve failed or partial orders in the summary instead of presenting all cards as successful trades.</li>
+<li><strong>Keep the collection useful.</strong> End with View collection and an explicit Open another pack action. Retain clear Demo labeling and show execution state alongside the collectible artwork.</li>
+</ol>
+<p class="rule"><strong>Visual proposal:</strong> charcoal canvas, restrained violet or electric-blue controls, distinct theme artwork, crisp light text, and foil only on the card surface. Keep side labels and execution statuses textual; do not imply that a decorative finish predicts profitability.</p>
+</section>
+
+<section id="handoff"><h2>Frontend handoff</h2><p>The inspected starter uses React 19, Vite, TypeScript, and ordinary CSS. Its <code>PackTile.tsx</code> and <code>PredictionCard.tsx</code> are the natural integration points.</p>
+<ul><li><strong>First pass:</strong> redesign PackTile’s wrapper and PredictionCard’s information hierarchy with existing CSS. Add a deterministic reveal state machine driven by server results.</li><li><strong>Effects:</strong> adapt Glare Hover first. Magic Card also imports <code>motion/react</code> and <code>next-themes</code>; the starter currently has neither. Its utility classes need Tailwind or a CSS translation.</li><li><strong>Utilities:</strong> <a href="downloads/magicui/registry-utils.ts">registry-utils.ts</a> is the minimal upstream <code>cn</code> helper (clsx and tailwind-merge). <code>utils.ts</code> is the larger website helper captured with the source; prefer the minimal helper if integrating.</li><li><strong>Animation:</strong> Shine Border needs the included registry animation/keyframes configuration. Honor reduced motion, support keyboard activation, and preserve focus after reveal.</li><li><strong>Validation when implemented:</strong> check a 320px layout, keyboard selection, Reveal all, reduced motion, reload during opening, duplicate submission prevention, and partial/failed order rendering.</li></ul>
+<p>Public catalog/detail screens and official documentation were inspected. No purchases or signed-in openings were performed. Screenshots are reference material; downloaded CC0/MIT assets have separate reuse terms included in the bundle.</p></section>
+<footer>Research snapshot: 11 October 2026 · All recommendations labeled as proposals · App source and dependencies unchanged by this research</footer>
+</main>
+</html>

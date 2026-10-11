@@ -4,6 +4,8 @@ Last updated: October 11, 2026. This is the shared source of truth for scope, ow
 
 ## Product agreement
 
+Visual direction revised October 11: **Mobbin’s white canvas, oversized black typography, and floating objects**, with realistic black foil ImPacks wrappers replacing the app icons. This supersedes the bubbly white/light-orange concept. Use crimped seals, fine texture, subtle wrinkles, restrained gold printing, and gentle floating motion. Crypto, Sports, and Chaos share the wrapper silhouette and differ through readable genre labels; revealed cards may remain colorful. [Design research](design/card-pack-research/index.html) contains the selected direction and original generated packaging assets. Add a continuously rotating horizontal category rail inspired by the user’s Mobbin screenshot: category labels above large black packs, a rounded All packs / Crypto / Sports / Chaos selector, pause/resume, and previous/next controls. Pause on hover and keyboard focus; default to stationary for reduced motion. The Next.js frontend now implements this direction, including the landing hero and category carousel. Local desktop/mobile browsing and login → three-card opening → collection restoration are verified. Vercel deployment is live at https://impacks.vercel.app; hosted API smoke checks pass. The Next.js dev app runs at http://localhost:3000.
+
 An easy login leads directly to themed packs. The user agrees to the budget and random selection before opening. The backend randomly draws three distinct eligible markets and a 50/50 YES/NO side for each, confirms AUSD payment, then submits the selected positions. Cards reveal the stored result and show actual order status.
 
 Target demo: AUSD on Base Sepolia plus Gemini Predictions sandbox. AUSD purchases the pack; Gemini orders use separately funded test USD. No conversion or exchange deposit bridge is implemented. Demo providers currently simulate both systems.
@@ -26,8 +28,8 @@ These are responsibilities within two teams, not four required people. Frontend 
 | SETUP-1 | Workspaces, shared types, scripts and lockfile | Repo setup | Done | Both apps install and build from root |
 | SETUP-2 | Demo login, pack open, collection | Repo setup | Done | Frontend consumes API, clearly labeled simulated |
 | SETUP-3 | Next.js App Router migration | Repo setup | Done | Next build, hydration and API rewrite verified |
-| FE-1 | Component structure and visual design | Frontend | Ready | Mobile and desktop login → opening flow |
-| FE-2 | Pack reveal animation | Frontend | Ready | Returned cards animate; reduced motion works |
+| FE-1 | Component structure and visual design | Frontend / Codex | Done (demo) | Mobile and desktop login → opening flow |
+| FE-2 | Pack reveal animation | Frontend | Motion draft ready; integration pending | Returned cards animate; reduced motion works |
 | FE-3 | Login and wallet payment UI | Frontend | Waiting on BE-1 / BE-3 | Authenticated wallet pays exact quote; rejection recoverable |
 | FE-4 | Order and payment result screens | Frontend | Ready | Pending, partial, failed and unknown states are explicit |
 | BE-1 | Real auth and durable storage | Backend/API | Ready | Verified sessions, wallet binding, durable receipts/orders |
@@ -62,10 +64,19 @@ Next.js migration verification: `npm run typecheck`, all 11 API tests, and `npm 
 | --- | --- | --- |
 | 2026-10-11 | Repository scaffold, local demo, provider ports, API contract and CI added | Frontend starts FE-1/FE-2; backend starts BE-1/BE-2/BE-3 |
 | 2026-10-11 | Frontend migrated to Next.js App Router; API ownership and shared types retained | Frontend uses `src/app` routes and port 3000; build, tests and browser smoke checks pass |
+| 2026-10-11 | User selected Monad Cards as the primary reference, with black/white/silver palette; reference board updated and monochrome concept prepared | Superseded by the white/light-orange direction below |
+| 2026-10-11 | User scrapped the dark concept; selected bubbly white/light-orange UI and clearly differentiated genre packs. New interactive pack-picker and illustrative reveal concept prepared | Superseded by the Mobbin / realistic black-wrapper direction below |
+| 2026-10-11 | User selected Mobbin’s layout with realistic black foil packs. Generated original transparent ImPacks artwork and prepared a responsive interactive concept; genre filters, pack preview, and help panel verified | FE-1 implements this direction; this pass changes design references and assets only |
+
+| 2026-10-11 | Implemented Mobbin-style Next.js landing page, original foil artwork, accessible rotating categories, and preserved demo checkout/collection. Added an explicit ephemeral Vercel demo adapter around the existing server-owned service | Local typecheck/build and all 11 API tests pass. Local proxy, embedded production build, and https://impacks.vercel.app each passed catalog/login/opening/identical-retry/collection/logout checks. Responsive UI checked at 390px; no browser errors. Vercel project impacks uses apps/web and Node 24. GitHub auto-link failed; deployments use the CLI. Hosted memory can reset across instances; integrations remain simulated |
 
 ## Open decisions
 
-- Choose login/wallet provider with the frontend team; target email or social login plus wallet attachment/embedded wallet.
+Motion handoff: the [opening specification](design/pack-opening/animation-spec.json) uses the user's selected black-and-gold wrapper, three accelerating 3D tear beats, rarity aura, and a lifted face-up card. Play, pause, replay, skip, chapter selection, and timeline scrubbing are available in the conversation prototype. Rarity colors and the single revealed card are illustrative; no rarity contract or probability mapping is implemented. Production must reveal the server's existing result and preserve actual order status. The prototype does not change application code or vendor integrations.
+
+October 11 motion revision: the tear now advances left to right in one-pixel increments along a ragged edge. A textured, perspective-projected foil mesh curls toward the viewer, exposes the silver underside, and remains connected to the intact right side until the tear passes. Local crease, fiber and light details follow the tear front. The strip releases only after reaching the far edge; the existing aura and card flip follow. Partial-tear views and playback were checked in the browser; this remains an isolated motion prototype, with production integration pending.
+
+- Privy selected for email, Google and wallet sign-in. Embedded wallet creation and wallet binding for payments remain future work.
 - Choose AUSD payment transport: ordinary testnet transfer verification first, or ERC-3009/x402 if the team can complete settlement and replay protection in time.
 - Choose a database and job/reconciliation approach before connecting external side effects.
 - Define refund/remainder handling and the mapping of demo users to Gemini sandbox accounts. A shared sandbox account does not create individual exchange-owned positions for each user.
@@ -73,3 +84,11 @@ Next.js migration verification: `npm run typecheck`, all 11 API tests, and `npm 
 ## Branches and merge checks
 
 Use `codex/frontend-<task>` and `codex/backend-<task>` branches. Keep PRs focused; both teams review contract changes. Run `npm run typecheck`, `npm test`, and `npm run build`. Do not merge secrets or hardcoded claims of successful vendor integration. Use the PR template to record the next team's handoff.
+
+## October 11 landing + Privy update
+
+Landing now centers “Gamble on gambling.” with floating Bitcoin, Ethereum, NFL, MLB, WNBA and NBA logos. The main CTA navigates to `/login`; the black-foil category rail remains below. `/packs` retains the existing simulated opening/collection flow. Cards show side, spend and gross conditional demo payout ($1 per winning contract); pending/failed orders never display a confirmed holding or payout. Random selection is explicitly distinguished from better odds.
+
+`POST /api/auth/privy` accepts a Privy access token in the Authorization bearer header, verifies ES256 signature, issuer, app audience, required subject/expiry/issued-at against Privy’s public JWKS, and returns the existing demo Session DTO. The server identity is the verified Privy DID; local session expiry is capped to token expiry. The client exchanges after authentication and navigates to packs. App logout also ends Privy login. No app secret is needed or stored. Public app ID is configured locally and in Vercel.
+
+Evidence: local Privy modal loads with email, Google, wallet options; signature/issuer/audience/expiry rejection tests pass (13 API tests total). Actual user authentication still requires a user to complete their email/OAuth/wallet sign-in; do not call end-to-end identity verified yet. Payments, orders, fixtures and in-memory storage remain demo-only. Hosted state can reset.

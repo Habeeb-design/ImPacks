@@ -1,0 +1,11 @@
+{
+  "generator": "built-in image_gen.imagegen",
+  "prompt": "Use case: product-mockup. Generate ONE standalone photorealistic collectible prediction-card booster pack asset for an ImPacks website. The provided image is a MATERIAL AND PACKAGING reference only: study the black flexible pouch, sealed/crimped edges, tactile fine grid texture, realistic folds, restrained muted gold foil printing. Create a NEW isolated SINGLE pack, straight-on front view, upright, no perspective tilt, complete silhouette with generous transparent margin, about 2:3 width:height. Actual transparent background, no white rectangle, no scenery, no other packs, no cast shadow outside the silhouette. Black matte metallized foil wrapper, realistic slightly puffed volume, edge creases, microtexture, crimped top and bottom, narrow metallic champagne-gold horizontal stripe around the upper quarter, premium product photography with soft studio highlights. Original brand only: small readable 'IMPACKS' in the upper stripe, a large simple outlined gold rounded rectangle crest with the letters 'IM' centered in the middle, small '3 PREDICTIONS' near the bottom. Keep the lower fifth mostly plain black to allow genre labels in the web interface. No Rainbow Six, Ubisoft, Siege, number 6 logo, combat graphics, red background, cartoon styling, colorful wrapper, or glossy plastic toy look. This is a believable photographed premium black foil trading-card pack. Maximum realistic material quality. Portrait composition.",
+  "reference": "User-attached Rainbow Six Siege black pouch material reference",
+  "transparent_background": true,
+  "outputs": [
+    "impacks-black-foil.png",
+    "impacks-black-foil.webp"
+  ],
+  "processing": "WebP encoding only; original PNG preserved."
+}

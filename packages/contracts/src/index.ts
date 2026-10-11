@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const routes = {
-  health: "/api/health", login: "/api/auth/demo", me: "/api/me",
+  health: "/api/health", privyLogin: "/api/auth/privy", login: "/api/auth/demo", me: "/api/me",
   logout: "/api/auth/logout", packs: "/api/packs", quotes: "/api/quotes",
   openings: "/api/openings", portfolio: "/api/portfolio",
 } as const;

@@ -16,6 +16,7 @@ async function request<T>(path: string, token?: string, body?: unknown, key?: st
   return response.status === 204 ? undefined as T : response.json();
 }
 export const api = {
+  privyLogin: (accessToken: string) => request<Session>(routes.privyLogin, accessToken, {}),
   login: (displayName: string) => request<Session>(routes.login, undefined, { displayName }),
   me: (token: string) => request<{ user: Session["user"] }>(routes.me, token),
   logout: (token: string) => request<void>(routes.logout, token, {}),

@@ -47,7 +47,7 @@ These are responsibilities within two teams, not four required people. Frontend 
 - Random selection runs on the server once per attempt. Refresh/retry returns the same result.
 - Never describe a pending/unknown order as a holding or a simulated receipt as on-chain settlement.
 - All keys stay server-side. Agree together before adding or renaming a required contract field.
-- Fixed 15 AUSD pack, three cards, 5-unit budget each, zero platform fee for the starter. Whole-contract rounding leaves a remainder; decide handling before the live testnet demo.
+- Catalog starter remains 15 AUSD / three cards. Category pages quote optional `budgetCents` from $20, $50, $100, or custom $20–$250 on $5 steps. Still three cards; leftover cents go to the first cards. Zero platform fee.
 
 ## Updating this document
 
@@ -69,6 +69,7 @@ Next.js migration verification: `npm run typecheck`, all 11 API tests, and `npm 
 | 2026-10-11 | User selected Mobbin’s layout with realistic black foil packs. Generated original transparent ImPacks artwork and prepared a responsive interactive concept; genre filters, pack preview, and help panel verified | FE-1 implements this direction; this pass changes design references and assets only |
 
 | 2026-10-11 | Implemented Mobbin-style Next.js landing page, original foil artwork, accessible rotating categories, and preserved demo checkout/collection. Added an explicit ephemeral Vercel demo adapter around the existing server-owned service | Local typecheck/build and all 11 API tests pass. Local proxy, embedded production build, and https://impacks.vercel.app each passed catalog/login/opening/identical-retry/collection/logout checks. Responsive UI checked at 390px; no browser errors. Vercel project impacks uses apps/web and Node 24. GitHub auto-link failed; deployments use the CLI. Hosted memory can reset across instances; integrations remain simulated |
+| 2026-10-11 | Category pack pages at `/category/{theme}` with $20 / $50 / $100 / custom stakes; quote accepts optional `budgetCents` | Amazon-style shop removed. Frontend still opens three random cards; stake is the only scaled input |
 
 ## Open decisions
 

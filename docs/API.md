@@ -16,7 +16,7 @@ Canonical types and body schemas live in `packages/contracts/src/index.ts`. Rout
 | GET | `/api/me` | None | `{user, mode}` | Yes |
 | POST | `/api/auth/logout` | `{}` | 204; session revoked | Yes |
 | GET | `/api/packs` | None | `{packs: Pack[]}` | No |
-| POST | `/api/quotes` | `{packId}` | `Quote` valid for 5 minutes | Yes |
+| POST | `/api/quotes` | `{packId, budgetCents?}` | `Quote` valid for 5 minutes | Yes |
 | POST | `/api/openings` | `OpenRequest` + `Idempotency-Key` | `Opening` | Yes |
 | GET | `/api/openings/:id` | Path ID | Owned `Opening` | Yes |
 | GET | `/api/portfolio` | None | `{openings: Opening[]}` | Yes |
@@ -24,7 +24,7 @@ Canonical types and body schemas live in `packages/contracts/src/index.ts`. Rout
 ## Purchase sequence
 
 1. Create a demo session; fetch packs.
-2. Display selected pack price, allocation, and shared disclosure. Require acceptance.
+2. Display selected pack price, allocation, and shared disclosure. Require acceptance. Category pages may send `budgetCents` ($20–$250, $5 steps). Omitted budget uses the catalog 15 AUSD starter. The quote still draws three cards and splits the budget in integer cents.
 3. Request a quote. Real payment UX will use its chain, asset, amount and recipient; the demo has a null recipient and moves no money.
 4. Retain one random idempotency key and the quote before submitting the opening.
 5. Post `{quoteId, disclosureVersion: "random-v1", paymentProof: "demo:<quoteId>"}` in local demo mode. A real proof must be separately specified and verified by the backend; the demo string is never valid payment outside demo mode.

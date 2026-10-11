@@ -61,7 +61,10 @@ export function buildApp(options: { mode?: string; providers?: Providers; privyA
   });
   app.get<{Params:{address:string}}>(`${routes.wallets}/:address/ausd`, async request => readAusdBalance(request.params.address));
   app.get(routes.packs, async () => ({ packs }));
-  app.post(routes.quotes, async request => service.quote(user(request.headers.authorization).id, quoteSchema.parse(request.body).packId));
+  app.post(routes.quotes, async request => {
+    const body = quoteSchema.parse(request.body);
+    return service.quote(user(request.headers.authorization).id, body.packId, body.budgetCents);
+  });
   app.post(routes.openings, async request => {
     const identity = user(request.headers.authorization);
     const body = openSchema.parse(request.body);

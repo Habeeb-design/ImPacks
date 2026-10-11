@@ -6,10 +6,12 @@ The frontend uses Next.js 16 with the App Router and TypeScript. Run `npm run de
 
 - `src/app/layout.tsx`: root document, metadata and global styles.
 - `src/app/page.tsx`: home route; add future routes in `src/app`.
+- `src/app/category/[theme]/page.tsx`: category pack page after a home-pack click.
 - `src/App.tsx`: client component for login, pack selection, checkout and collection. Browser session state restores after hydration.
 - `src/components/PackTile.tsx`: theme selection and pack artwork.
 - `src/components/PackArtwork.tsx`: shared black foil wrapper and genre label.
 - `src/components/PackCarousel.tsx`: rotating categories, keyboard/touch browsing, pause and reduced motion.
+- `src/components/CategoryPack.tsx`: category stake picker and opening.
 - `src/components/PredictionCard.tsx`: reveal and order status.
 - `src/lib/api.ts`: single typed API client; components should not call vendor APIs.
 - `src/styles.css`: starting styles; replace with the team's component system.

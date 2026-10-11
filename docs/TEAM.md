@@ -411,7 +411,7 @@ The category UI keeps its $20/$50/$100/custom budget and three predictions. Addi
 
 Category checkout and Dashboard payment history now connect to wallet authentication, receipt verification, persisted selection preparation and owner-only execution/refund status. Reveals use stored results, never a client-side redraw. Checkout creation, signature and preparation do not transfer funds. Actual Gemini submissions and refund broadcasting remain disabled pending vendor execution/reconciliation; the simulated opening/closing flow remains explicitly labeled. Public UI cannot access internal fulfillment credentials or report fills. Embedded Vercel demo rejects persistent checkout operations.
 
-Validation and final handoff will be recorded after reconciliation and checks. Do not promote this branch to main before the user's integration test.
+Final handoff: [integration test guide](INTEGRATION_TEST.md). Do not promote this branch to main before the user's integration test.
 
 Mekila reconciliation: merged its branch history and retained nine-genre Gemini discovery and expanded shared Theme definitions. The current three fixture-backed opening editions and seven preview genres stay honest about availability. Its proof-echo payment method and unaudited submission path are superseded by receipt verification and durable execution preparation; startup still refuses sandbox mode. Original implementation remains available in its source commits. The current package lock is retained because the older branch's lockfile rewrite would discard newer dependencies.
 
@@ -424,3 +424,12 @@ Latest-main reconciliation: incorporated `18db4e0`, including the durable databa
 - Timing now adapts to the actual returned card count. Staggers are bounded so large reveals finish in about ten seconds; all cards finish their flips/shimmer before completion. Replay/skip continue to reuse returned cards, with no API or purchase changes. The current catalog still returns three cards; larger counts were explicit QA fixtures only.
 - Checks cover 1/2/3/6/12/40 cards at narrow and wide widths, wrapper clearance before enlargement, non-overlap, bounds, final reveal and bounded duration. Browser checks verified the enlarged desktop three-card scene, mobile twelve-card scroll area, no horizontal overflow, keyboard scrolling and visible collection controls. The temporary fixture route was removed before the production build.
 - Final validation passed: `npm run typecheck`, all 177 tests (149 API + 28 web), `npm run build`, and `git diff --check`. No deployment or live purchase was performed.
+
+
+### Integration validation and promotion handoff (2026-10-11)
+
+- Final code snapshot `c28e70c` was checked in a separate clean worktree installed from the lockfile: typecheck, all **178 tests (150 API + 28 web)** and production build passed. No temporary QA route is in the route output. Diff whitespace checks pass.
+- Browser smoke verified category stake changes and the preserved sign-in return amount, the checkout panel, and narrow layout at 390 CSS pixels with no horizontal overflow. The ten-pack fan now uses the narrower sizing below 420px. No browser errors were observed in these guest checks. Real Privy OTP and wallet-signature prompts remain for the user's test.
+- Production proxy smoke passed explicit demo login → $50 Sports quote → three-card opening → identical retry → portfolio → simulated close. No transfer or Gemini order was submitted. API tests separately prove durable category retries/restart recovery, owner isolation, legacy-chain rejection, receipt-to-selection/status projection, reported-fill card identity and disabled refund broadcasting using explicit fixtures.
+- All requested remote branches and latest main are ancestors of this integration branch. The most recent adaptive animation revision is included. Main remains outside this task's promotion scope until the user finishes testing; background updates from another task were reconciled through `18db4e0`.
+- Still blocked for a fully live money-to-trade demonstration: authenticated Gemini submission with durable permits/reconciliation, final settlement/refund broadcaster, deployed grant-worker evidence, and the user's real Privy/wallet walkthrough. The UI states these boundaries rather than reporting simulated execution as real.

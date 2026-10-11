@@ -214,3 +214,21 @@ Documentation checks: local links, Markdown structure and diff whitespace review
 - `/marketplace` supports owned lots, listings, review/confirm, partial quantity, cancel, paper balance/history, and owner-scoped sessionStorage retries. Dashboard preserves original fills and projects remaining ownership. Payout rights follow the buyer in the ledger; actual resolution settlement is not implemented.
 - Setup, routes, architecture corrections and integration boundaries are in [POSTTRADE.md](POSTTRADE.md). Activation is explicit and requires standalone persistent SQLite. No Gemini sale, on-chain transfer, redeemable balance or option derivative was enabled.
 - Validation: typecheck, 64 tests (46 API + 18 web) and production build passed. The Privy-signed API test exercises pack opening → listing → quote → two concurrent same-key purchase requests → updated ownership; no live vendor call occurs. Desktop and 390px guest browser checks found no horizontal overflow or JavaScript errors. Real two-account Privy browser interaction and any real-backed trade remain unverified.
+
+### Post-trade local verification (2026-10-11)
+
+Ran the existing codex/posttrade implementation in the established Node 24 Docker
+container. Installed missing branch dependencies without changing manifests, and
+configured the user-supplied public Privy App ID in ignored local environment files.
+The standalone API runs on container loopback port 3002 with persistent
+`/var/lib/impacks/posttrade.sqlite`; the frontend at localhost:3001 proxies to it.
+Embedded API mode and welcome-grant funding are disabled. No signer/worker or
+blockchain transfer was started.
+
+Validation: all 46 API and 18 frontend tests passed, including authenticated resale,
+quantity/cash conservation, rollback, duplicate requests and database restart/retry.
+Typecheck and full build passed; the frontend was rebuilt with the configured public
+Privy ID. `/marketplace` and proxied health return HTTP 200; unauthenticated portfolio
+returns 401. Persistent ledger tables were verified read-only. Real two-account
+email sign-in and browser trades still require the user to complete login; test JWTs
+are not live Privy evidence. Local start instructions are in POSTTRADE.md.

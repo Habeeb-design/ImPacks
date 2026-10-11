@@ -1,6 +1,6 @@
 # ImPacks API contract
 
-Canonical types and body schemas live in `packages/contracts/src/index.ts`. Routes below are implemented by the local demo API. Checkout payments use SQLite and server-side verification. Wallet ownership and fulfillment authorization are implemented; demo identity/storage and provider reconciliation remain separate tasks.
+Canonical types and body schemas live in `packages/contracts/src/index.ts`. The standalone API serves the explicitly simulated pack flow and durable testnet checkout separately. Privy sessions own simulated cards; wallet-signature sessions own SQLite checkout records. External execution and refund settlement remain disabled.
 
 ## Transport
 
@@ -21,11 +21,9 @@ Canonical types and body schemas live in `packages/contracts/src/index.ts`. Rout
 | POST | `/api/auth/logout` | `{}` | 204; session revoked | Yes |
 | GET | `/api/packs` | None | `{packs: Pack[]}` | No |
 | POST | `/api/quotes` | `{packId, budgetCents?}` | `Quote` valid for 5 minutes | Yes |
-
 | POST | `/api/checkout` | `{packType, buyerAddress?}` | 201 `CheckoutPurchase` | Wallet session |
 | GET | `/api/checkout/:purchaseId` | UUID purchase ID | `CheckoutPurchase` | Wallet session |
 | POST | `/api/checkout/:purchaseId/verify` | `{transactionHash}` | Confirmed `CheckoutPurchase` or retryable/error response | Wallet session |
-| POST | `/api/quotes` | `{packId}` | `Quote` valid for 5 minutes | Yes |
 | POST | `/api/openings` | `OpenRequest` + `Idempotency-Key` | `Opening` | Yes |
 | GET | `/api/openings/:id` | Path ID | Owned `Opening` | Yes |
 | GET | `/api/portfolio` | None | `{openings: Opening[]}` | Yes |

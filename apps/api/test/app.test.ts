@@ -152,3 +152,14 @@ test("category quote scales the three-card budget on $5 steps", async t => {
 test("unimplemented external mode fails closed", () => {
   assert.throws(() => buildApp({ mode: "sandbox" }), /Only demo mode/);
 });
+
+test("embedded demo preserves catalog but cannot run durable payment operations", async t => {
+  const app = buildApp({ ephemeralDemo: true });
+  t.after(() => app.close());
+  assert.equal((await app.inject({ url: "/api/packs" })).statusCode, 200);
+  for (const url of ["/api/checkout", "/api/auth/wallet/challenge"]) {
+    const response = await app.inject({ method: "POST", url, payload: {} });
+    assert.equal(response.statusCode, 503);
+    assert.equal(response.json().error.code, "DURABLE_API_REQUIRED");
+  }
+});

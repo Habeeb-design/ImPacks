@@ -414,3 +414,5 @@ Category checkout and Dashboard payment history now connect to wallet authentica
 Validation and final handoff will be recorded after reconciliation and checks. Do not promote this branch to main before the user's integration test.
 
 Mekila reconciliation: merged its branch history and retained nine-genre Gemini discovery and expanded shared Theme definitions. The current three fixture-backed opening editions and seven preview genres stay honest about availability. Its proof-echo payment method and unaudited submission path are superseded by receipt verification and durable execution preparation; startup still refuses sandbox mode. Original implementation remains available in its source commits. The current package lock is retained because the older branch's lockfile rewrite would discard newer dependencies.
+
+Latest-main reconciliation: incorporated `18db4e0`, including the durable database path correction and ephemeral-host regression test. `ephemeralDemo` remains a supported alias of the integration branch’s embedded mode; both reject wallet checkout/internal routes. No update to main was performed by this integration task.

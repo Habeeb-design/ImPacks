@@ -31,7 +31,7 @@ import { emptyBodySchema, walletChallengeSchema, walletSignatureSchema, fulfillm
 import { WalletAuthService } from "./services/wallet-auth.js";
 import { FulfillmentService, authorizeFulfillment } from "./services/fulfillment.js";
 
-export function buildApp(options: { embeddedDemo?: boolean; privyAppId?: string; privyKey?: JWTVerifyGetKey; grants?: GrantApi; mode?: string; providers?: Providers; checkoutRecipientAddress?: string;
+export function buildApp(options: { ephemeralDemo?: boolean; embeddedDemo?: boolean; privyAppId?: string; privyKey?: JWTVerifyGetKey; grants?: GrantApi; mode?: string; providers?: Providers; checkoutRecipientAddress?: string;
   checkoutDatabasePath?: string; paymentVerifier?: PaymentVerifier; appOrigin?: string; internalFulfillmentKey?: string; executionMarkets?: MarketProvider } = {}) {
   if ((options.mode ?? "demo") !== "demo") throw new Error("Only demo mode is wired. Implement verified identity, durable storage, AUSD and Gemini providers before enabling sandbox.");
   const privyAppId = options.privyAppId ?? process.env.PRIVY_APP_ID ?? process.env.NEXT_PUBLIC_PRIVY_APP_ID;
@@ -41,7 +41,7 @@ export function buildApp(options: { embeddedDemo?: boolean; privyAppId?: string;
   const sessions = new Map<string, { user: User; expiresAt: number }>();
   const service = new PackService(packs, options.providers ?? demoProviders());
   const readCategories = createMarketCategoryReader();
-  const embeddedDemo = options.embeddedDemo === true;
+  const embeddedDemo = options.embeddedDemo === true || options.ephemeralDemo === true;
   const databasePath = embeddedDemo ? ":memory:" : options.checkoutDatabasePath ?? process.env.AUSD_DATABASE_PATH ?? defaultCheckoutDatabasePath;
   if (!embeddedDemo && databasePath === ":memory:" && options.checkoutDatabasePath !== ":memory:") {
     throw new Error("AUSD_DATABASE_PATH must point to durable storage. In-memory SQLite is for injected tests only.");
@@ -57,7 +57,7 @@ export function buildApp(options: { embeddedDemo?: boolean; privyAppId?: string;
   app.addHook("onRequest", async (request, reply) => {
     if ([routes.checkout, "/api/auth/wallet", routes.internalFulfillment].some(path => request.url.startsWith(path))) {
       reply.header("Cache-Control", "no-store");
-      if (embeddedDemo && request.url !== routes.checkoutCapabilities) throw new HttpError(503, "CHECKOUT_UNAVAILABLE", "Testnet checkout requires the standalone API with durable storage.");
+      if (embeddedDemo && request.url !== routes.checkoutCapabilities) throw new HttpError(503, "DURABLE_API_REQUIRED", "Testnet checkout requires the standalone API with durable storage.");
     }
   });
   function user(authorization?: string): User {

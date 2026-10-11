@@ -13,12 +13,13 @@ import { HttpError } from "./errors.js";
 export { default as injectRequest } from "light-my-request";
 
 export function buildApp(options: { mode?: string; providers?: Providers; privyAppId?: string; privyKey?: JWTVerifyGetKey } = {}) {
-  if ((options.mode ?? "demo") !== "demo") throw new Error("Only demo mode is wired. Implement verified identity, durable storage, AUSD and Gemini providers before enabling sandbox.");
+  const mode = options.mode ?? "demo";
+  if (mode !== "demo" && mode !== "sandbox") throw new Error("Unknown mode. Use APP_MODE=demo or APP_MODE=sandbox.");
   const privyAppId = options.privyAppId ?? process.env.PRIVY_APP_ID ?? process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const verifyPrivy = privyAppId ? createPrivyVerifier(privyAppId, options.privyKey) : null;
   const app = Fastify({ bodyLimit: 32_768 });
   const sessions = new Map<string, { user: User; expiresAt: number }>();
-  const service = new PackService(packs, options.providers ?? demoProviders());
+  const service = new PackService(packs, options.providers ?? demoProviders(), mode === "sandbox" ? "sandbox" : "demo");
   function user(authorization?: string): User {
     const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
     const session = sessions.get(token);
@@ -35,7 +36,7 @@ export function buildApp(options: { mode?: string; providers?: Providers; privyA
     const status = typeof candidate === "number" && candidate >= 400 && candidate < 500 ? candidate : 500;
     return reply.code(status).send({ error: { code: status === 500 ? "INTERNAL_ERROR" : "INVALID_REQUEST", message: status === 500 ? "Request failed. Retry with the same idempotency key." : "Invalid request." } });
   });
-  app.get(routes.health, async () => ({ ok: true, mode: "demo", integrations: { auth: verifyPrivy ? "privy+demo" : "simulated", payments: "simulated", markets: "fixtures", orders: "simulated", storage: "memory" } }));
+  app.get(routes.health, async () => ({ ok: true, mode, integrations: { auth: verifyPrivy ? "privy" : "simulated", payments: mode === "sandbox" ? "ausd-testnet" : "simulated", markets: mode === "sandbox" ? "gemini-sandbox" : "fixtures", orders: mode === "sandbox" ? "gemini-sandbox" : "simulated", storage: "memory" } }));
   app.post(routes.login, async request => {
     const { displayName } = loginSchema.parse(request.body);
     const token = randomBytes(32).toString("hex");

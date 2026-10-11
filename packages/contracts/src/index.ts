@@ -14,7 +14,7 @@ export const openSchema = z.object({
   paymentProof: z.string().min(1).max(16384),
 });
 export type OpenRequest = z.infer<typeof openSchema>;
-export type Theme = "crypto" | "sports" | "mixed";
+export type Theme = "crypto" | "sports" | "politics" | "economics" | "commodities" | "business" | "culture" | "tech" | "weather" | "mixed";
 export type Side = "YES" | "NO";
 export interface User { id: string; displayName: string }
 export interface Session { token: string; user: User; mode: "demo" }

@@ -28,7 +28,7 @@ export class PackService {
   private attempts = new Map<string, { key: string; result: Promise<Opening> }>();
   private keys = new Map<string, string>();
   private history = new Map<string, { userId: string; value: Opening }>();
-  constructor(private packs: Pack[], private providers: Providers) {}
+  constructor(private packs: Pack[], private providers: Providers, private mode: "demo" | "sandbox" = "demo") {}
 
   quote(userId: string, packId: string): Quote {
     const pack = this.packs.find(p => p.id === packId);
@@ -63,7 +63,7 @@ export class PackService {
     const cards = drawCards(await this.providers.markets.listEligible(quote.pack.theme), quote.pack);
     const opening: Opening = {
       id: randomUUID(), quoteId: quote.id, packName: quote.pack.name, createdAt: new Date().toISOString(),
-      status: "pending", payment: { status: "unknown", reference: null }, cards, mode: "demo",
+      status: "pending", payment: { status: "unknown", reference: null }, cards, mode: this.mode,
     };
     this.history.set(opening.id, { userId, value: opening });
     try {

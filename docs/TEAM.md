@@ -120,3 +120,8 @@ Replaced provider selection with a direct email field and Privy one-time-code ve
 - Replaced the central IM shield with real logo overlays on the shared pack artwork. Crypto uses BTC/ETH, Sports uses NFL/NBA/MLB/WNBA, and Chaos combines crypto, sports, tech, culture and business marks. Each wrapper reads Crypto Edition, Sports Edition or Chaos Edition. Catalog data, prices, and opening behavior are unchanged.
 - Built-in imagegen removed the shield from a sibling foil asset; original artwork is preserved. Logos and edition typography remain HTML/CSS overlays. Asset provenance and exact generation prompt: `apps/web/public/images/PACK-ARTWORK.md`.
 - Typecheck, all 15 API tests, and production build pass. Desktop/mobile catalog and desktop login fan visually checked; all pack assets load and mobile has no horizontal page overflow.
+
+### Centered logo fans (2026-10-11)
+
+- Tightened the pack logo overlays into centered, overlapping fans with angled outer marks and raised middle marks. Edition labels and foil artwork stay intact.
+- Desktop and 390px mobile checked; all pack images load without horizontal page overflow. Typecheck, 15 API tests and production build pass.

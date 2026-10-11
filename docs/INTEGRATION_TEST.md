@@ -1,5 +1,7 @@
 # Integration branch handoff
 
+**Current gated purchase integration:** follow [PURCHASE_PIPELINE.md](PURCHASE_PIPELINE.md) for the Crypto payment, execution, final holdings and refund acceptance test. The preparation-only walkthrough below remains useful with the pipeline disabled. No live trade/refund success is claimed yet.
+
 Branch: `codex/integration-ui-backend`. The user has authorized main promotion after integrating Mekila's changes and completing checks. The walkthrough below still records required manual and vendor validation.
 
 ## What is combined

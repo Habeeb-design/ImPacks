@@ -4,10 +4,10 @@ import type { MarketCategories, CheckoutCapabilities, CheckoutStatus } from "@im
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); }
 }
-async function request<T>(path: string, token?: string, body?: unknown, key?: string): Promise<T> {
+async function request<T>(path: string, token?: string, body?: unknown, key?: string, extraHeaders?: Record<string, string>): Promise<T> {
   const response = await fetch(`${base}${path}`, {
     method: body === undefined ? "GET" : "POST",
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...(key ? { "Idempotency-Key": key } : {}) },
+    headers: { ...extraHeaders, ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...(key ? { "Idempotency-Key": key } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
@@ -17,6 +17,10 @@ async function request<T>(path: string, token?: string, body?: unknown, key?: st
   return response.status === 204 ? undefined as T : response.json();
 }
 export const api = {
+  startPurchase: (token: string, id: string, privyToken: string) => request<CheckoutStatus>(`${routes.checkout}/${encodeURIComponent(id)}/start`, token, {}, undefined, { "X-Privy-Token": privyToken }),
+  paymentIntent: (token: string, id: string, privyToken: string) => request<import("@impacks/contracts").PaymentIntent>(`${routes.checkout}/${encodeURIComponent(id)}/payment-intent`, token, {}, undefined, { "X-Privy-Token": privyToken }),
+  paymentRejected: (token: string, id: string, attemptId: string) => request<void>(`${routes.checkout}/${encodeURIComponent(id)}/payment-rejected`, token, { attemptId }),
+  attachPayment: (token: string, id: string, transactionHash: string) => request<CheckoutStatus>(`${routes.checkout}/${encodeURIComponent(id)}/payment`, token, { transactionHash }),
   checkoutCapabilities: () => request<CheckoutCapabilities>(routes.checkoutCapabilities),
   checkouts: (token: string) => request<{ purchases: CheckoutStatus[] }>(routes.checkout, token),
   checkoutStatus: (token: string, id: string) => request<CheckoutStatus>(`${routes.checkout}/${encodeURIComponent(id)}/status`, token),

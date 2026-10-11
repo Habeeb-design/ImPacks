@@ -1,3 +1,4 @@
+import type { PipelineStore } from "../pipeline/store.js";
 import type { CheckoutStatus, Opening } from "@impacks/contracts";
 import { HttpError } from "../errors.js";
 import type { CheckoutService } from "./checkout.js";
@@ -13,7 +14,7 @@ function optional<T>(read: () => T): T | null {
 
 /** Projection of persisted evidence, never simulated fills or a second random draw. */
 export function checkoutStatus(checkout: CheckoutService, executionService: ExecutionService, refunds: RefundService,
-  purchaseId: string, wallet: string): CheckoutStatus {
+  purchaseId: string, wallet: string, pipeline?: PipelineStore): CheckoutStatus {
   const purchase = checkout.get(purchaseId, wallet);
   const execution = optional(() => executionService.get(purchaseId));
   const refund = optional(() => refunds.get(purchaseId));
@@ -25,8 +26,8 @@ export function checkoutStatus(checkout: CheckoutService, executionService: Exec
     payment: { status: "confirmed", reference: purchase.transactionHash },
     cards: execution.orders.map(order => order.card),
   } : null;
-  return { purchase, opening,
-    execution: execution ? { state: execution.state, preparedCards: execution.orders.length, filledCards: execution.orders.filter(order => order.state === "filled").length } : null,
+  return { purchase, opening: pipeline?.row(purchaseId) ? pipeline.opening(purchaseId) : opening, pipeline: pipeline?.status(purchaseId) ?? null,
+    execution: execution ? { state: execution.state, preparedCards: execution.orders.length, filledCards: execution.orders.filter(order => order.card.order.status === "filled").length } : null,
     refund: refund ? { state: refund.state, candidateAtomic: refund.candidateAtomic, authorizedAtomic: refund.authorizedAtomic,
-      transactionHash: refund.transactionHash, broadcastEnabled: refund.broadcastEnabled } : null };
+      transactionHash: refund.transactionHash, broadcastEnabled: pipeline?.row(purchaseId) ? pipeline.ready() : refund.broadcastEnabled } : null };
 }

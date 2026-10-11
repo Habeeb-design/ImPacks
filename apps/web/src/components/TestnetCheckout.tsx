@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { paymentProofKey } from "../lib/payment";
 import { DISCLOSURE_VERSION, type CheckoutCapabilities, type CheckoutStatus, type Opening } from "@impacks/contracts";
 import { api, ApiError } from "../lib/api";
 import { checkoutAttemptKey, restoreCheckoutAttempt, type CheckoutAttempt } from "../lib/checkout";
@@ -13,7 +14,7 @@ type Category = "crypto" | "sports" | "mixed";
 const message = (error: unknown) => error instanceof Error ? error.message : "Unable to reach checkout. Retry the same purchase.";
 const atomic = (amount: string) => `${BigInt(amount) / 1000000n}${BigInt(amount) % 1000000n ? `.${(BigInt(amount) % 1000000n).toString().padStart(6,"0").replace(/0+$/, "")}` : ""}`;
 
-function useCapabilities() {
+export function useCapabilities() {
   const [capabilities, setCapabilities] = useState<CheckoutCapabilities | null>(null);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
@@ -25,18 +26,45 @@ function useCapabilities() {
   return { capabilities, error, retry: () => setRevision(value => value + 1) };
 }
 
+async function pay(wallet: ReturnType<typeof useAccountWallet>, purchaseId: string, token: string, isCurrent: () => boolean) {
+  const access = await wallet.getAccessToken();
+  if (!isCurrent()) throw new Error("Account changed. Resume with the original wallet.");
+  if (!access || !wallet.address) throw new Error("Reconnect your account before payment.");
+  const address = wallet.address;
+  const proofKey = paymentProofKey(address, purchaseId);
+  const saved = sessionStorage.getItem(proofKey);
+  if (saved) return api.attachPayment(token, purchaseId, saved);
+  // Verify storage before asking the wallet. The server separately grants one payment request.
+  sessionStorage.setItem(`${proofKey}:requested`, "1");
+  const intent = await api.paymentIntent(token, purchaseId, access);
+  if (!isCurrent()) throw new Error("Account changed before wallet confirmation. Resume the original purchase.");
+  let hash: string;
+  try { hash = await wallet.sendCheckoutPayment(intent.purchase); }
+  catch (cause) {
+    if (typeof cause === "object" && cause !== null && "code" in cause && cause.code === 4001) {
+      await api.paymentRejected(token, purchaseId, intent.attemptId);
+      sessionStorage.removeItem(`${proofKey}:requested`);
+    }
+    throw cause;
+  }
+  // Keep the returned hash visible even if storage or the API fails after wallet submission.
+  try { sessionStorage.setItem(proofKey, hash); }
+  catch { throw new Error(`Payment submitted: ${hash}. Save this hash and use Verify payment; do not pay again.`); }
+  return api.attachPayment(token, purchaseId, hash);
+}
+
 function PurchaseDetails({ value, onUpdate }: { value: CheckoutStatus; onUpdate: (value: CheckoutStatus) => void }) {
   const wallet = useAccountWallet();
   const [hash, setHash] = useState("");
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [reveal, setReveal] = useState<Opening | null>(null);
   const inFlight = useRef(false);
-  const owner = useRef(wallet.address); owner.current = wallet.address;
+  const owner = useRef(`${wallet.userId}:${wallet.address}`); owner.current = `${wallet.userId}:${wallet.address}`;
   const purchase = value.purchase;
   const id = purchase.purchaseId;
-  const hashKey = `impacks.checkout-proof:${wallet.address?.toLowerCase()}:${id}`;
+  const hashKey = paymentProofKey(wallet.address ?? "", id);
   useEffect(() => { try { setHash(sessionStorage.getItem(hashKey) ?? purchase.transactionHash ?? ""); } catch { setHash(purchase.transactionHash ?? ""); } }, [hashKey, purchase.transactionHash]);
-  async function act(action: "refresh" | "verify" | "prepare") {
+  async function act(action: "refresh" | "verify" | "prepare" | "pay") {
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true); setError("");
     const captured = owner.current;
@@ -46,35 +74,60 @@ function PurchaseDetails({ value, onUpdate }: { value: CheckoutStatus; onUpdate:
       if (action === "verify") {
         if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new Error("Enter the transaction hash of the existing testnet payment.");
         sessionStorage.setItem(hashKey, hash);
-        await api.verifyCheckout(token, id, { transactionHash: hash });
+        if (value.pipeline) await api.attachPayment(token, id, hash);
+        else await api.verifyCheckout(token, id, { transactionHash: hash });
       }
+      if (action === "pay") await pay(wallet, id, token, () => owner.current === captured);
       const next = action === "prepare" ? await api.prepareCheckout(token, id) : await api.checkoutStatus(token, id);
       if (owner.current === captured) onUpdate(next);
     } catch (cause) {
       if (owner.current === captured) { if (cause instanceof ApiError && cause.status === 401) wallet.invalidateCheckout(); setError(message(cause)); }
     } finally { inFlight.current = false; setBusy(false); }
   }
+  useEffect(() => {
+    if (!value.pipeline || value.pipeline.state === "completed" || !wallet.checkoutToken) return;
+    let active = true;
+    const captured = owner.current, token = wallet.checkoutToken;
+    const timer = setInterval(() => {
+      if (inFlight.current) return;
+      void (async () => {
+        const saved = sessionStorage.getItem(hashKey);
+        if (saved && !value.pipeline?.paymentHash) await api.attachPayment(token, id, saved);
+        const next = await api.checkoutStatus(token, id);
+        if (active && owner.current === captured) onUpdate(next);
+      })().catch(cause => { if (active) setError(message(cause)); });
+    }, 5000);
+    return () => { active = false; clearInterval(timer); };
+  }, [id, value.pipeline?.state, value.pipeline?.paymentHash, wallet.checkoutToken, hashKey, onUpdate]);
+  useEffect(() => {
+    if (value.pipeline && ["settled", "refunding", "completed"].includes(value.pipeline.state) && value.opening) {
+      const key = `impacks.revealed:${wallet.address?.toLowerCase()}:${id}`;
+      try { if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, "1"); setReveal(value.opening); } } catch { /* Replay remains available. */ }
+    }
+  }, [id, value.pipeline?.state, value.opening, wallet.address]);
   return <article className={styles.receipt}>
     <span className={styles.status}>{purchase.status === "confirmed" ? "Payment verified" : purchase.status === "expired" ? "Checkout expired" : "Awaiting payment evidence"}</span>
     <h3>{purchase.pack?.name ?? `${purchase.packType} testnet pack`}</h3>
     <dl><div><dt>Test AUSD</dt><dd>{purchase.amount}</dd></div><div><dt>Network</dt><dd>Ethereum Sepolia</dd></div><div><dt>Purchase</dt><dd>{id}</dd></div><div><dt>Expires</dt><dd>{new Date(purchase.expiresAt).toLocaleString()}</dd></div></dl>
-    <p className={styles.note}>Receiving wallet: {purchase.recipientAddress}. This checkout does not move funds. Trading and refund transfers are not enabled.</p>
+    <p className={styles.note}>Receiving wallet: {purchase.recipientAddress}. {value.pipeline ? "Your wallet confirms the exact transfer. The server tracks payment, sandbox execution and unused funds." : "This checkout does not move funds. Trading and refund transfers are not enabled."}</p>
     {purchase.transactionHash && <a href={`https://sepolia.etherscan.io/tx/${purchase.transactionHash}`} target="_blank" rel="noreferrer">View verified payment ↗</a>}
     {purchase.status !== "confirmed" && <><label className={styles.hash}>Verify an existing testnet payment<input aria-label="Payment transaction hash" placeholder="0x…" value={hash} disabled={busy} onChange={event => setHash(event.target.value.trim())}/></label><p className={styles.note}>Pending confirmations can be retried with the same hash. Expired checkouts can still verify a payment mined before their deadline.</p></>}
     <div className={styles.actions}>
+      {value.pipeline && purchase.status === "pending" && !value.pipeline.paymentRequested && <button className="primary" disabled={busy} onClick={() => void act("pay")}>Pay {purchase.amount} test AUSD</button>}
       {purchase.status !== "confirmed" && <button className="secondary" disabled={busy || !hash} onClick={() => void act("verify")}>Verify payment</button>}
-      {purchase.status === "confirmed" && !value.execution?.preparedCards && <button className="secondary" disabled={busy} onClick={() => void act("prepare")}>Prepare predictions</button>}
+      {purchase.status === "confirmed" && !value.pipeline && !value.execution?.preparedCards && <button className="secondary" disabled={busy} onClick={() => void act("prepare")}>Prepare predictions</button>}
       <button className="text-button" disabled={busy} onClick={() => void act("refresh")}>{busy ? "Checking…" : "Refresh status"}</button>
     </div>
+    {value.pipeline && <p role="status">Purchase: {value.pipeline.state}. {value.pipeline.message}{value.pipeline.paymentRequested && !value.pipeline.paymentHash && purchase.status !== "confirmed" ? " A payment request exists. Check wallet history and attach its hash before sending anything else." : ""}</p>}
     {value.execution && <p role="status">Predictions: {value.execution.state} · {value.execution.preparedCards} prepared · {value.execution.filledCards} filled. Prepared predictions are not holdings.</p>}
-    {value.refund && <p>Remainder: {value.refund.state} · {atomic(value.refund.authorizedAtomic ?? value.refund.candidateAtomic)} test AUSD {value.refund.authorizedAtomic ? "authorized" : "estimated"}. Refund transfers remain disabled.{value.refund.transactionHash && <> <a href={`https://sepolia.etherscan.io/tx/${value.refund.transactionHash}`} target="_blank" rel="noreferrer">View refund ↗</a></>}</p>}
+    {value.refund && <p>Remainder: {value.refund.state} · {atomic(value.refund.authorizedAtomic ?? value.refund.candidateAtomic)} test AUSD {value.refund.authorizedAtomic ? "authorized" : "estimated"}. {value.pipeline ? "Refund confirmation is tracked automatically." : "Refund transfers remain disabled."}{value.refund.transactionHash && <> <a href={`https://sepolia.etherscan.io/tx/${value.refund.transactionHash}`} target="_blank" rel="noreferrer">View refund ↗</a></>}</p>}
     {value.opening && <><div className={styles.cards}>{value.opening.cards.map(card => <PredictionCard key={card.id} card={card} mode="sandbox"/>)}</div><button className="secondary" onClick={() => setReveal(value.opening)}>Replay pack reveal</button><p className={styles.note}>These are reported sandbox results. Position selling is not enabled.</p></>}
     {reveal && <PackOpeningReveal opening={reveal} category={reveal.theme === "crypto" || reveal.theme === "sports" ? reveal.theme : "mixed"} onClose={() => setReveal(null)}/>}
     {error && <p className={styles.error} role="alert">{error}</p>}
   </article>;
 }
 
-export function TestnetCheckout({ packId, budgetCents, accepted }: { packId: Category; budgetCents: number | null; accepted: boolean }) {
+export function TestnetCheckout({ packId, budgetCents, accepted, actionRef, onActivity }: { packId: Category; budgetCents: number | null; accepted: boolean; actionRef?: { current: (() => void) | null }; onActivity?: (value: { busy: boolean; budgetCents: number | null }) => void }) {
   const wallet = useAccountWallet();
   const { capabilities, error: capabilityError, retry } = useCapabilities();
   const scope = `${wallet.userId}:${wallet.address?.toLowerCase()}:${packId}`;
@@ -83,6 +136,8 @@ export function TestnetCheckout({ packId, budgetCents, accepted }: { packId: Cat
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const inFlight = useRef(false);
   const current = state?.scope === scope ? state : null;
+  const savedBudget = current?.attempt?.body.budgetCents ?? null;
+  useEffect(() => { onActivity?.({ busy, budgetCents: savedBudget }); }, [busy, savedBudget, onActivity]);
   useEffect(() => {
     setError("");
     if (!wallet.address) { setState(null); return; }
@@ -91,7 +146,7 @@ export function TestnetCheckout({ packId, budgetCents, accepted }: { packId: Cat
     try { attempt = restoreCheckoutAttempt(sessionStorage.getItem(key), packId); } catch { /* storage unavailable */ }
     setState({ scope, attempt, status: null });
   }, [scope, wallet.address, packId]);
-  async function prepare() {
+  async function prepare(makePayment = false) {
     if (inFlight.current || !wallet.address || !budgetCents || (!accepted && !current?.attempt)) return;
     const captured = scope, address = wallet.address;
     inFlight.current = true; setBusy(true); setError("");
@@ -106,12 +161,22 @@ export function TestnetCheckout({ packId, budgetCents, accepted }: { packId: Cat
       const purchase = attempt.purchaseId ? await api.checkout(token, attempt.purchaseId) : await api.createCheckout(token, attempt.body, attempt.key);
       const saved = { ...attempt, purchaseId: purchase.purchaseId };
       sessionStorage.setItem(key, JSON.stringify(saved));
-      const status = await api.checkoutStatus(token, purchase.purchaseId);
+      let status = await api.checkoutStatus(token, purchase.purchaseId);
+      if (capabilities?.purchaseMode === "sandbox") {
+        const access = await wallet.getAccessToken();
+        if (identity.current !== captured) return;
+        if (!access) throw new Error("Reconnect your account to start checkout.");
+        status = await api.startPurchase(token, purchase.purchaseId, access);
+        if (makePayment && capabilities.paymentEnabled && status.purchase.status === "pending" && !status.pipeline?.paymentRequested) {
+          status = await pay(wallet, purchase.purchaseId, token, () => identity.current === captured);
+        }
+      }
       if (identity.current === captured) setState({ scope: captured, attempt: saved, status });
     } catch (cause) { if (identity.current === captured) { if (cause instanceof ApiError && cause.status === 401) wallet.invalidateCheckout(); setError(message(cause)); } }
     finally { inFlight.current = false; setBusy(false); }
   }
-  return <section className={styles.panel} aria-label="Testnet checkout">
+  useEffect(() => { if (actionRef) actionRef.current = () => { void prepare(true); }; return () => { if (actionRef) actionRef.current = null; }; });
+  return <section id="testnet-checkout" className={styles.panel} aria-label="Testnet checkout">
     <p className="eyebrow">ETHEREUM SEPOLIA · TEST AUSD</p><h2>Your testnet checkout.</h2>
     <p>Connect your wallet to prepare a checkout for this edition and budget, verify an existing payment, and follow its predictions from your dashboard.</p>
     <p className={styles.note}>{capabilities?.reason ?? "Checking checkout availability…"}</p>

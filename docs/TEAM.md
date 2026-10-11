@@ -30,13 +30,13 @@ These are responsibilities within two teams, not four required people. Frontend 
 | SETUP-3 | Next.js App Router migration | Repo setup | Done | Next build, hydration and API rewrite verified |
 | FE-1 | Component structure and visual design | Frontend / Codex | Done (demo) | Mobile and desktop login → opening flow |
 | FE-2 | Pack reveal animation | Frontend | Integrated on integration branch; user walkthrough pending | Returned cards animate; reduced motion works |
-| FE-3 | Login and wallet payment UI | Frontend | Checkout/auth/status connected; transfers gated | Authenticated wallet pays exact quote; rejection recoverable |
+| FE-3 | Login and wallet payment UI | Frontend | Exact testnet payment and durable status connected; activation gated | Authenticated wallet pays exact quote; rejection recoverable |
 | FE-4 | Order and payment result screens | Frontend | Ready | Pending, partial, failed and unknown states are explicit |
 | BE-1 | Real auth and durable storage | Backend/API | Privy + wallet auth and SQLite checkout integrated; simulated packs remain in memory | Verified sessions, wallet binding, durable receipts/orders |
 | BE-2 | Gemini markets adapter | Backend/API | Public discovery integrated; sandbox liquidity/execution proof pending | Live discovery, themes, fresh executable prices, sufficient liquidity |
 | BE-3 | AUSD testnet payment adapter | AUSD payments developer | In progress: wallet auth, payment verification and durable fulfillment authorization tested; issuer/live rollout pending | Verify sender/token/chain/recipient/amount; proof cannot be reused |
-| BE-4 | Gemini sandbox order adapter | Backend/API | Waiting on BE-1 / BE-2 | Stable client IDs, bounded spend, actual fills and positions |
-| BE-5 | Reconciliation and remainder policy | Backend/API | Ready | Unknown orders checked before retries; refund/remainder policy recorded |
+| BE-4 | Gemini sandbox order adapter | Backend/API | Durable worker implemented; real fill/fee acceptance pending | Stable client IDs, bounded spend, actual fills and positions |
+| BE-5 | Reconciliation and remainder policy | Backend/API | Durable settlement/refund worker tested with fixtures; live receipt pending | Unknown orders checked before retries; refund/remainder policy recorded |
 | DEMO-1 | Real testnet end-to-end smoke test | Both | Waiting on integrations | Payment receipt + sandbox orders + portfolio match |
 | DEMO-2 | Public repo, deployment, ≤2 minute recording | Release owner — assign | Not started | Submission links work and show non-hardcoded core behavior |
 
@@ -59,6 +59,15 @@ These are responsibilities within two teams, not four required people. Frontend 
 4. Add an entry below for API changes, integration evidence and decisions. Both teams review shared-contract changes.
 
 ## Handoff log
+
+### Durable Crypto purchase integration and dedicated AUSD treasury (2026-10-11)
+
+- Implemented the gated purchase worker: verified AUSD payment → stable Gemini sandbox IOC orders → matched final fills/fees → persisted holdings/reveal → exact six-decimal remainder refund. The Crypto Buy action and Dashboard history consume the same durable status. Simulated packs and the paper marketplace remain explicitly separate. Sports/Chaos sandbox purchase activation is deferred.
+- SQLite schema 6 persists admission reservations, Privy/wallet binding, one-use payment requests and order submission permits, observations, shared nonces, worker leases and final settlement. Unknown submission outcomes use original-client-ID lookup; no not-found result authorizes a second send. Legacy internal mutations are fenced for worker-managed purchases. Signed refunds persist before broadcast and reuse identical bytes on recovery.
+- Created dedicated Ethereum Sepolia recipient/refund treasury `0xcf0C5EB7cE054ae0FD4F8863427E516fEf40381D`. Generated signer is in ignored worker-only local secrets; supplied Gemini credentials stay in ignored API secrets. Initial balances: 0 ETH / 0 AUSD. No actual transfer or order was submitted.
+- Live read-only evidence: sandbox authentication and already-accepted terms succeeded; $99,981.48 sandbox USD available; 33 Crypto markets had compatible buy quotes; order-history and trade-history reads returned HTTP 200. Empty sampled trade history does not prove actual prediction fill/fee reconciliation. No vendor completion claim is made.
+- Validation: Node 24 typecheck, **214 tests (182 API + 32 web)**, production build and diff whitespace checks passed. Added recovery, partial-fill, sub-cent refund, nonce-window, account isolation and gating coverage. Production browser checks confirmed Crypto Buy stays disabled without worker readiness and Sports explains its unavailable sandbox status. Authenticated wallet signing and actual vendor execution remain for the controlled test.
+- Activation blockers: fund the new treasury with Sepolia ETH, configure the explicit sandbox budget and fee reserve, then enable the worker for one controlled $20 purchase with a funded buyer. Confirm real fill/fee records, reveal/holdings and refund receipt, including restart/retry. Operational reconciliation for deep reorgs/trade corrections, capacity/key migration, additional categories, real-backed resale and resolution payouts remain future work. Follow [purchase setup and acceptance](PURCHASE_PIPELINE.md); local payment activation remains disabled.
 
 ### Additional Mekila reconciliation before main promotion (2026-10-11)
 

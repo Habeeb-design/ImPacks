@@ -284,3 +284,18 @@ Schema 5 adds durable checkout keys and chain-bound wallet challenges/sessions. 
 ## User-to-user paper resale
 
 The optional `/api/posttrade` extension has a durable ownership/cash ledger, owner-only listings, expiring purchase quotes and atomic paper trades. It requires Privy-backed sessions and uses distinct `Position`, `ResaleListing`, `ResaleQuote` and `ResaleTrade` contracts. Current holdings are separate from original pack receipts; the old close route is blocked when this ledger is active. See [POSTTRADE.md](POSTTRADE.md) for endpoints, retry rules and the integration handoff. This does not execute Gemini sells, create option contracts or pay AUSD.
+
+## Optional durable purchase pipeline
+
+See [configuration, recovery and live-test limitations](PURCHASE_PIPELINE.md). The existing wallet bearer token and exact Origin are required on all checkout operations. New mutations:
+
+| Method and path | Input | Result |
+| --- | --- | --- |
+| POST `/api/checkout/:purchaseId/start` | `{}` and `X-Privy-Token` | Checkout status after account binding and budget reservation |
+| POST `/api/checkout/:purchaseId/payment-intent` | `{}` and `X-Privy-Token` | `{ attemptId, purchase }` with one enabled exact transfer |
+| POST `/api/checkout/:purchaseId/payment-rejected` | `{ attemptId }` | 204; release only that rejected wallet request, before a hash is attached |
+| POST `/api/checkout/:purchaseId/payment` | `{ transactionHash }` | Status with persisted hash for worker verification; this is not payment confirmation |
+
+Capabilities include `purchaseMode`, `enabledPackIds`, and dynamic payment/order/refund availability. Sandbox currently enables only Crypto. Checkout status adds `pipeline` (state, message, paymentRequested, paymentHash). Its final opening appears only after persisted settlement. Holdings/transactions remain wallet-owned; Privy identity alone cannot read another wallet's checkout. New DTOs and validation live in `@impacks/contracts`, with typed browser calls in `apps/web/src/lib/api.ts`.
+
+A conflict after a wallet request or exchange submission must resume the original identity; it must not create a new payment or redraw. Authoritative worker evidence is not accepted from public HTTP bodies, and legacy internal execution-report mutations are blocked for worker-managed purchases.

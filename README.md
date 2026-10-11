@@ -13,13 +13,9 @@ npm run dev
 
 Open http://localhost:3000. The Next.js App Router frontend proxies `/api` to the Fastify API at http://localhost:3001. Set the public Privy App ID as described in the app environment examples to enable email sign-in. Browse genres under Packs, select an available edition, accept random selection, and open it. Dashboard keeps the resulting cards grouped by opened pack and lets the signed-in owner inspect or close simulated positions.
 
-**Team starter:** Privy email sign-in and on-chain wallet balance reads are implemented. Pack payments and fills are simulated, and pack state resets on API restart. Non-demo trading mode refuses to start until the backend team wires real providers and persistence. Do not collect money with this starter.
+**Default mode:** pack payments and trades remain explicitly simulated. Wallet-owned AUSD checkouts, receipt verification and the optional Crypto sandbox purchase worker use durable SQLite storage. The [purchase pipeline guide](docs/PURCHASE_PIPELINE.md) covers payment → Gemini IOC orders → reconciled holdings → exact remainder refund. It is implemented behind disabled-by-default flags; actual funded-wallet end-to-end acceptance remains outstanding.
 
-The independent `/api/checkout` flow now persists purchases in SQLite and verifies
-testnet AUSD receipts. It does not issue packs or enable payment collection;
-the current Privy wallet can sign in to checkout, and durable internal fulfillment authorization is available.
-Issuer integration and live rollout checks remain outstanding. See the
-[checkout setup](apps/api/README.md#persistent-checkout-and-verification).
+AUSD runs on Ethereum Sepolia and Gemini uses separately funded sandbox USD. No conversion bridge or production trading is implemented. Credentials and refund signing keys stay in server/worker secrets.
 
 ## Ownership
 
@@ -32,9 +28,9 @@ Issuer integration and live rollout checks remain outstanding. See the
 
 Start with [team roles and status](docs/TEAM.md), [API contract](docs/API.md), and [integration notes](docs/INTEGRATIONS.md). Update the team board in each PR.
 
-**Integration branch:** [configuration and integration-test walkthrough](docs/INTEGRATION_TEST.md). The UI now connects the selected category/stake to durable testnet checkout, receipt verification and Dashboard payment history. Transfers and Gemini submissions remain disabled.
+**Integration branch:** [configuration and integration-test walkthrough](docs/INTEGRATION_TEST.md). The UI now connects the selected category/stake to durable testnet checkout, receipt verification and Dashboard payment history. The optional [durable purchase pipeline](docs/PURCHASE_PIPELINE.md) adds transfers and Gemini submissions when its dedicated worker is explicitly enabled and ready.
 
-Backend build plan: [sandbox treasury, ledger and execution](docs/PAYMENTS_ARCHITECTURE.md), followed by the optional [AUSD execution escrow](docs/ESCROW_SPEC.md). These plans describe the intended full execution system. SQLite receipt verification and execution/refund preparation exist; actual trading and refund transfers remain unimplemented.
+Backend build plan: [sandbox treasury, ledger and execution](docs/PAYMENTS_ARCHITECTURE.md), followed by the optional [AUSD execution escrow](docs/ESCROW_SPEC.md). These plans describe the broader execution system; the current gated Crypto implementation and remaining live evidence are documented in the purchase pipeline guide.
 
 Optional [50-test-AUSD welcome grants](docs/WELCOME_GRANTS.md) on **Ethereum Sepolia (11155111)** are implemented and disabled by default. A separate worker funds new, verified Privy users from a dedicated external wallet, with PostgreSQL records preventing duplicate grants. Follow the setup guide to configure server secrets, migrate the database, and run the worker. This does not fund Gemini or enable pack payments.
 
@@ -65,9 +61,7 @@ Set the Vercel project root directory to `apps/web`, Node.js to `24.x`, and depl
 - AUSD testnet payment and Gemini sandbox USD are separate. This MVP has no AUSD-to-Gemini bridge.
 - Target Most Creative, Gemini Predictions and Agora AUSD tracks. Replace fixtures with working testnet/sandbox integrations before judging.
 
-Stage 1 now adds [durable sandbox execution preparation](docs/EXECUTION.md): confirmed
-purchases reserve an internal nominal USD budget and stable order intents. Order
-submission, card issuance and refunds remain disabled.
+The historical [Stage 1 execution guide](docs/EXECUTION.md) documents reservation and preparation. The [purchase worker](docs/PURCHASE_PIPELINE.md) extends it with durable submission, final holdings and refund transport.
 
 ## Paper position marketplace
 

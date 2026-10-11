@@ -1,7 +1,10 @@
+import { createPostTradeStore } from "./posttrade/runtime.js";
 import { buildApp } from "./app.js";
 import { createGrantApi } from "./grants/runtime.js";
 const grants = await createGrantApi();
-const app = buildApp({ mode: process.env.APP_MODE ?? "demo", grants: grants ?? undefined });
+const postTrade = createPostTradeStore();
+const app = buildApp({ postTrade, mode: process.env.APP_MODE ?? "demo", grants: grants ?? undefined });
+if(postTrade) app.addHook("onClose",()=>postTrade.close());
 if (grants) app.addHook("onClose", () => grants.close());
 const address = await app.listen({ port: Number(process.env.PORT ?? 3001), host: process.env.HOST ?? "127.0.0.1" });
 console.log(`ImPacks API: ${address} (DEMO: simulated providers)`);

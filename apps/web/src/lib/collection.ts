@@ -2,10 +2,12 @@ import type { Card, Opening } from "@impacks/contracts";
 
 export type CollectionStatus = "open" | "closed" | "awaiting" | "unfilled";
 export type CollectionFilter = "all" | CollectionStatus;
+export const heldQuantity = (card: Card) => card.position?.remainingQuantity ?? (card.position?.status === "closed" ? 0 : card.order.quantity);
+
 export function cardStatus(card: Card): CollectionStatus {
   if (card.order.status === "pending" || card.order.status === "unknown") return "awaiting";
   if (card.order.status !== "filled" || card.order.quantity <= 0) return "unfilled";
-  return card.position?.status === "closed" ? "closed" : "open";
+  return card.position?.status === "closed" || heldQuantity(card) === 0 ? "closed" : "open";
 }
 export const statusLabels: Record<CollectionStatus, string> = {
   open: "Open position", closed: "Closed position", awaiting: "Awaiting confirmation", unfilled: "Not filled",
@@ -23,8 +25,8 @@ export function collectionSummary(openings: Opening[]) {
     closed: cards.filter(card => cardStatus(card) === "closed").length,
     awaiting: cards.filter(card => cardStatus(card) === "awaiting").length,
     unfilled: cards.filter(card => cardStatus(card) === "unfilled").length,
-    openSpentCents: open.reduce((sum, card) => sum + card.order.spentCents, 0),
-    conditionalGrossCents: open.reduce((sum, card) => sum + card.order.quantity * 100, 0),
+    openSpentCents: open.reduce((sum, card) => sum + (card.position?.costBasisCents ?? card.order.spentCents), 0),
+    conditionalGrossCents: open.reduce((sum, card) => sum + heldQuantity(card) * 100, 0),
   };
 }
 export function filterCollection(openings: Opening[], filter: CollectionFilter, genre: string, search: string) {

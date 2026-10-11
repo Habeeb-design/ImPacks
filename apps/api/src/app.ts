@@ -1,3 +1,5 @@
+import { registerPostTrade } from "./posttrade/routes.js";
+import type { PostTradeStore } from "./posttrade/store.js";
 import Fastify from "fastify";
 import { readAusdBalance } from "./services/wallet.js";
 import { createPrivyVerifier } from "./privy.js";
@@ -14,7 +16,7 @@ import { registerGrantRoutes, type GrantApi } from "./grants/routes.js";
 // Explicit CJS-compatible adapter for serverless hosts that cannot require ESM.
 export { default as injectRequest } from "light-my-request";
 
-export function buildApp(options: { mode?: string; providers?: Providers; privyAppId?: string; privyKey?: JWTVerifyGetKey; grants?: GrantApi } = {}) {
+export function buildApp(options: { postTrade?: PostTradeStore; mode?: string; providers?: Providers; privyAppId?: string; privyKey?: JWTVerifyGetKey; grants?: GrantApi } = {}) {
   if ((options.mode ?? "demo") !== "demo") throw new Error("Only demo mode is wired. Implement verified identity, durable storage, AUSD and Gemini providers before enabling sandbox.");
   const privyAppId = options.privyAppId ?? process.env.PRIVY_APP_ID ?? process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const verifyPrivy = privyAppId ? createPrivyVerifier(privyAppId, options.privyKey) : null;
@@ -32,6 +34,7 @@ export function buildApp(options: { mode?: string; providers?: Providers; privyA
     }
     return session.user;
   }
+  registerPostTrade(app, options.postTrade, user, service);
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) return reply.code(400).send({ error: { code: "INVALID_REQUEST", message: error.issues.map(i => i.message).join("; ") } });
     if (error instanceof HttpError) return reply.code(error.statusCode).send({ error: { code: error.code, message: error.message } });
@@ -75,15 +78,26 @@ export function buildApp(options: { mode?: string; providers?: Providers; privyA
     const body = openSchema.parse(request.body);
     const key = request.headers["idempotency-key"];
     if (typeof key !== "string" || !/^[a-zA-Z0-9_-]{8,128}$/.test(key)) throw new HttpError(400, "INVALID_KEY", "Supply an Idempotency-Key of 8–128 letters, digits, hyphens or underscores.");
-    return service.open(identity.id, body.quoteId, key, body.paymentProof);
+    const opening=await service.open(identity.id, body.quoteId, key, body.paymentProof);
+    if(identity.id.startsWith("did:privy:")) options.postTrade?.importOpening(identity.id,opening);
+    return options.postTrade?.project(identity.id,opening) ?? opening;
   });
-  app.get<{ Params: { id: string } }>(`${routes.openings}/:id`, async request => service.get(user(request.headers.authorization).id, request.params.id));
-  app.get(routes.portfolio, async request => ({ openings: service.portfolio(user(request.headers.authorization).id) }));
+  app.get<{ Params: { id: string } }>(`${routes.openings}/:id`, async request => {
+    const owner=user(request.headers.authorization).id, opening=service.get(owner,request.params.id);
+    return options.postTrade?.project(owner,opening) ?? opening;
+  });
+  app.get(routes.portfolio, async request => {
+    const owner=user(request.headers.authorization).id;
+    const openings=service.portfolio(owner);
+    if(owner.startsWith("did:privy:")) for(const opening of openings) options.postTrade?.importOpening(owner,opening);
+    return {openings:openings.map(opening=>options.postTrade?.project(owner,opening) ?? opening)};
+  });
   app.post<{ Params: { id: string; cardId: string } }>(`${routes.openings}/:id/cards/:cardId/close`, async request => {
     const identity = user(request.headers.authorization);
     closePositionSchema.parse(request.body);
     const key = request.headers["idempotency-key"];
     if (typeof key !== "string" || !/^[a-zA-Z0-9_-]{8,128}$/.test(key)) throw new HttpError(400, "INVALID_KEY", "Supply an Idempotency-Key of 8–128 letters, digits, hyphens or underscores.");
+    if(options.postTrade) throw new HttpError(409,"USE_MARKETPLACE","This holding is managed by the marketplace. Cancel listings there; do not close the original pack receipt.");
     return service.closePosition(identity.id, request.params.id, request.params.cardId, key);
   });
   return app;

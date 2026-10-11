@@ -56,3 +56,7 @@ Set the Vercel project root directory to `apps/web`, Node.js to `24.x`, and depl
 - Server owns selection, budget and execution; browser animates stored results, never rerolls.
 - AUSD testnet payment and Gemini sandbox USD are separate. This MVP has no AUSD-to-Gemini bridge.
 - Target Most Creative, Gemini Predictions and Agora AUSD tracks. Replace fixtures with working testnet/sandbox integrations before judging.
+
+## Paper position marketplace
+
+The isolated post-trade slice adds `/marketplace`: list existing position quantity, buy another user's listing, and transfer its future paper payout rights. It uses a durable SQLite ledger and separately labeled simulated USD. Enable the standalone API with `POSTTRADE_DEMO_ENABLED=1` and a persistent `POSTTRADE_DB_PATH`. See [setup, model and integration handoff](docs/POSTTRADE.md). Real-backed resale and payouts remain unimplemented.

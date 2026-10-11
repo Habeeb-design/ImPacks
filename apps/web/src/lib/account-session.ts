@@ -22,6 +22,6 @@ export async function resolveAccountSession(userId: string, cached: Session | nu
 
 export function postLoginPath(next: string | null): string {
   // Only return to known app routes; never allow an external redirect from a query string.
-  if (!next || !/^\/(?:dashboard|packs|category\/(?:crypto|sports|mixed))(?:\?[^#]*)?$/.test(next)) return "/packs";
+  if (!next || !/^\/(?:marketplace|dashboard|packs|category\/(?:crypto|sports|mixed))(?:\?[^#]*)?$/.test(next)) return "/packs";
   return next;
 }

@@ -8,6 +8,7 @@ Branch: `codex/integration-ui-backend`. Keep main unchanged until the user finis
 - Previously local work: genre browser, approved one-wrapper/three-card reveal, Ethereum Sepolia wallet and welcome grants, architecture specifications.
 - AUSD branch: SQLite checkout, wallet-signature ownership, receipt verification, fulfillment leases, durable selection/order intents, refund preparation, diagnostics and Docker environment.
 - Mekila: nine-genre Gemini discovery and shared Theme definitions. Its unverified payment proof echo and ungated order submission are superseded by the verified checkout and disabled execution ports. The original code is preserved in Git history.
+- Posttrade: the Trade navigation, marketplace, durable paper resale ledger, and remaining-ownership projection in Dashboard. Paper holdings and simulated cash remain separate from testnet checkout.
 
 ## Current boundaries
 
@@ -34,6 +35,9 @@ AUSD_RECIPIENT_ADDRESS=<dedicated public payment treasury address>
 AUSD_MIN_CONFIRMATIONS=12
 # AUSD_DATABASE_PATH=<persistent absolute path>; defaults to apps/api/data/checkout.sqlite
 WELCOME_GRANTS_ENABLED=0
+# Enable for the two-account paper marketplace walkthrough:
+POSTTRADE_DEMO_ENABLED=1
+POSTTRADE_DB_PATH=data/posttrade.sqlite
 ```
 
 Frontend `apps/web/.env.local` uses `NEXT_PUBLIC_PRIVY_APP_ID`, `API_PROXY_TARGET=http://127.0.0.1:3001` and `IMPACKS_EMBEDDED_DEMO=0`. APP_ORIGIN must match the browser's exact scheme/host/port. The Next.js proxy forwards that origin without inventing it. All balances, signatures, receipts and explorers now use Ethereum Sepolia (11155111).
@@ -67,5 +71,6 @@ For production-style local testing after building, run `npm run start:api` and `
 7. Receipt verification is for an existing authorized test payment only. Do not send funds just to bypass the disabled checkout gate. In controlled API tests, verify pending/reorg/wrong token/amount/sender/recipient/replay cases; then prepare the exact same selection twice.
 8. Trusted backend fixture tests exercise reported fills and refund states. UI cards must retain pending/unknown/failed labels; only actual confirmed fills count as holdings. No public route may authorize execution reports, settlement or refund broadcast.
 9. Test unavailable RPC/Gemini/API states. Errors must stay visible and retries must preserve purchase/selection identity. Embedded Vercel mode must report checkout unavailable.
+10. Open **Trade** (`/marketplace`) with two Privy test accounts. Account A opens a simulated pack, lists some quantity, and account B purchases it. Check reserved/remaining quantity, both paper balances, Dashboard ownership and trade history. Retry the same saved request and restart the API to confirm no duplicate transfer. With the paper ledger enabled, the former full-position close action is replaced by marketplace management. Follow [POSTTRADE.md](POSTTRADE.md) for detailed checks; real checkout fills and AUSD balances do not enter this paper ledger.
 
 Record results and any remaining failures in `docs/TEAM.md` before promoting to main. CI and this checklist do not replace the user's Privy/wallet or live vendor integration test.

@@ -126,7 +126,7 @@ export interface Market {
 export interface Card {
   id: string; marketId: string; question: string; side: Side;
   allocationCents: number; priceCents: number;
-  position?: { status: "open" | "closed"; closedAt?: string; exitPriceCents?: number; proceedsCents?: number };
+  position?: { remainingQuantity?: number; listedQuantity?: number; costBasisCents?: number; status: "open" | "closed"; closedAt?: string; exitPriceCents?: number; proceedsCents?: number };
   order: { id: string | null; status: "filled" | "pending" | "failed" | "unknown";
     quantity: number; spentCents: number; message?: string };
 }
@@ -205,3 +205,5 @@ export interface CheckoutStatus {
   refund: Pick<AusdRefund, "state" | "candidateAtomic" | "authorizedAtomic" | "transactionHash" | "broadcastEnabled"> | null;
   opening: Opening | null;
 }
+
+export * from "./posttrade.js";

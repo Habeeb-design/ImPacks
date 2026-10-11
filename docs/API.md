@@ -280,3 +280,7 @@ All checkout routes require the wallet bearer session, independently of the Priv
 The existing verification endpoint accepts the same transaction hash for retries. The frontend saves owner-scoped checkout metadata and receipt hashes before requests and restores them after hydration; tokens stay in memory. Pending/unknown orders never count as holdings. Refund status exposes only state, candidate/authorized amount, public hash and disabled-broadcast flag. Internal endpoints remain server-only and reject browser Origin headers.
 
 Schema 5 adds durable checkout keys and chain-bound wallet challenges/sessions. Legacy Base purchases are preserved but blocked from current execution; old unbound sessions require fresh wallet authentication. Embedded demo mode rejects checkout, wallet-auth and internal payment operations and never presents ephemeral storage as durable.
+
+## User-to-user paper resale
+
+The optional `/api/posttrade` extension has a durable ownership/cash ledger, owner-only listings, expiring purchase quotes and atomic paper trades. It requires Privy-backed sessions and uses distinct `Position`, `ResaleListing`, `ResaleQuote` and `ResaleTrade` contracts. Current holdings are separate from original pack receipts; the old close route is blocked when this ledger is active. See [POSTTRADE.md](POSTTRADE.md) for endpoints, retry rules and the integration handoff. This does not execute Gemini sells, create option contracts or pay AUSD.

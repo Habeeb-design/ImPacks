@@ -68,3 +68,7 @@ Set the Vercel project root directory to `apps/web`, Node.js to `24.x`, and depl
 Stage 1 now adds [durable sandbox execution preparation](docs/EXECUTION.md): confirmed
 purchases reserve an internal nominal USD budget and stable order intents. Order
 submission, card issuance and refunds remain disabled.
+
+## Paper position marketplace
+
+The isolated post-trade slice adds `/marketplace`: list existing position quantity, buy another user's listing, and transfer its future paper payout rights. It uses a durable SQLite ledger and separately labeled simulated USD. Enable the standalone API with `POSTTRADE_DEMO_ENABLED=1` and a persistent `POSTTRADE_DB_PATH`. See [setup, model and integration handoff](docs/POSTTRADE.md). Real-backed resale and payouts remain unimplemented.

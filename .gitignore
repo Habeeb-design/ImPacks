@@ -154,3 +154,9 @@ vite.config.ts.timestamp-*
 .turbo
 .vercel/
 .vercel
+
+# Local paper post-trade database
+apps/api/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

@@ -23,7 +23,7 @@ Canonical types and body schemas live in `packages/contracts/src/index.ts`. Rout
 | POST | `/api/checkout` | `{packType, buyerAddress?}` | 201 `CheckoutPurchase` | Wallet session |
 | GET | `/api/checkout/:purchaseId` | UUID purchase ID | `CheckoutPurchase` | Wallet session |
 | POST | `/api/checkout/:purchaseId/verify` | `{transactionHash}` | Confirmed `CheckoutPurchase` or retryable/error response | Wallet session |
-| POST | `/api/quotes` | `{packId}` | `Quote` valid for 5 minutes | Yes |
+| POST | `/api/quotes` | `{packId, budgetCents?}` | `Quote` valid for 5 minutes | Yes |
 | POST | `/api/openings` | `OpenRequest` + `Idempotency-Key` | `Opening` | Yes |
 | GET | `/api/openings/:id` | Path ID | Owned `Opening` | Yes |
 | GET | `/api/portfolio` | None | `{openings: Opening[]}` | Yes |
@@ -207,7 +207,7 @@ pack issuance, or external order is performed by these endpoints.
 ### Existing demo opening flow
 
 1. Create a demo session; fetch packs.
-2. Display selected pack price, allocation, and shared disclosure. Require acceptance.
+2. Display selected pack price, allocation, and shared disclosure. Require acceptance. Category pages may send `budgetCents` ($20–$250, $5 steps). Omitted budget uses the catalog 15 AUSD starter. The quote still draws three cards and splits the budget in integer cents.
 3. Request a quote. Real payment UX will use its chain, asset, amount and recipient; the demo has a null recipient and moves no money.
 4. Retain one random idempotency key and the quote before submitting the opening.
 5. Post `{quoteId, disclosureVersion: "random-v1", paymentProof: "demo:<quoteId>"}` in local demo mode. A real proof must be separately specified and verified by the backend; the demo string is never valid payment outside demo mode.
@@ -248,3 +248,13 @@ GET `/api/internal/checkout/:purchaseId/refund` and POST suffixes `/prepare`,
 `/authorize`, `/reconcile` use the existing internal backend credential. POST bodies
 are strictly empty objects. Authorization is blocked pending an authoritative final
 settlement adapter; broadcasting is disabled. See [REFUNDS.md](REFUNDS.md).
+### Public wallet balance
+
+`GET /api/wallets/:address/ausd` reads a valid EVM address on Base Sepolia. Returns WalletBalance (`address`, `chainId:84532`, `asset:"AUSD"`, `tokenAddress`, decimal-string `balanceAtomic`, exact `formatted` string, `network:"Base Sepolia"`). Invalid addresses return 400; RPC/chain/token validation failures return 503. This read does not prove account ownership or authorize payments.
+
+
+## Collector dashboard
+
+- Openings now include optional `theme`; filled positive-quantity cards receive `position: { status: "open" }`. Order receipts retain the original entry quantity and spend.
+- `POST /api/openings/:id/cards/:cardId/close` requires the current API bearer session, an `Idempotency-Key`, and `{ "confirmSimulation": true }`. Only the opening's owner can close a confirmed filled position. This paper-only action closes its entire quantity at the current fixture side price and returns the updated Opening. `position` gains `status: "closed"`, `closedAt`, `exitPriceCents`, and `proceedsCents`; the card remains in the portfolio. No wallet or Gemini order call occurs and proceeds are not redeemable funds.
+- Concurrent/replayed close requests cannot close twice. Keys are bound to owner/opening/card; reuse for another position returns `409 KEY_REUSED`. Missing/unavailable prices leave the position open and permit a same-key retry. Nonfilled orders and sandbox openings fail closed. In-memory storage and these retry guards are not durable trading infrastructure.

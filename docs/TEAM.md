@@ -4,6 +4,8 @@ Last updated: October 11, 2026. This is the shared source of truth for scope, ow
 
 ## Product agreement
 
+Visual direction revised October 11: **Mobbin’s white canvas, oversized black typography, and floating objects**, with realistic black foil ImPacks wrappers replacing the app icons. This supersedes the bubbly white/light-orange concept. Use crimped seals, fine texture, subtle wrinkles, restrained gold printing, and gentle floating motion. Crypto, Sports, and Chaos share the wrapper silhouette and differ through readable genre labels; revealed cards may remain colorful. [Design research](design/card-pack-research/index.html) contains the selected direction and original generated packaging assets. Add a continuously rotating horizontal category rail inspired by the user’s Mobbin screenshot: category labels above large black packs, a rounded All packs / Crypto / Sports / Chaos selector, pause/resume, and previous/next controls. Pause on hover and keyboard focus; default to stationary for reduced motion. The Next.js frontend now implements this direction, including the landing hero and category carousel. Local desktop/mobile browsing and login → three-card opening → collection restoration are verified. Vercel deployment is live at https://impacks.vercel.app; hosted API smoke checks pass. The Next.js dev app runs at http://localhost:3000.
+
 An easy login leads directly to themed packs. The user agrees to the budget and random selection before opening. The backend randomly draws three distinct eligible markets and a 50/50 YES/NO side for each, confirms AUSD payment, then submits the selected positions. Cards reveal the stored result and show actual order status.
 
 Target demo: AUSD on Base Sepolia plus Gemini Predictions sandbox. AUSD purchases the pack; Gemini orders use separately funded test USD. No conversion or exchange deposit bridge is implemented. Demo providers currently simulate both systems.
@@ -26,8 +28,8 @@ These are responsibilities within two teams, not four required people. Frontend 
 | SETUP-1 | Workspaces, shared types, scripts and lockfile | Repo setup | Done | Both apps install and build from root |
 | SETUP-2 | Demo login, pack open, collection | Repo setup | Done | Frontend consumes API, clearly labeled simulated |
 | SETUP-3 | Next.js App Router migration | Repo setup | Done | Next build, hydration and API rewrite verified |
-| FE-1 | Component structure and visual design | Frontend | Ready | Mobile and desktop login → opening flow |
-| FE-2 | Pack reveal animation | Frontend | Ready | Returned cards animate; reduced motion works |
+| FE-1 | Component structure and visual design | Frontend / Codex | Done (demo) | Mobile and desktop login → opening flow |
+| FE-2 | Pack reveal animation | Frontend | Motion draft ready; integration pending | Returned cards animate; reduced motion works |
 | FE-3 | Login and wallet payment UI | Frontend | Waiting on BE-1 / BE-3 | Authenticated wallet pays exact quote; rejection recoverable |
 | FE-4 | Order and payment result screens | Frontend | Ready | Pending, partial, failed and unknown states are explicit |
 | BE-1 | Real auth and durable storage | Backend/API | Ready | Verified sessions, wallet binding, durable receipts/orders |
@@ -46,6 +48,7 @@ These are responsibilities within two teams, not four required people. Frontend 
 - Never describe a pending/unknown order as a holding or a simulated receipt as on-chain settlement.
 - All keys stay server-side. Agree together before adding or renaming a required contract field.
 - Existing demo opening flow: fixed 15 AUSD pack, three cards, 5-unit budget each, zero platform fee. Authenticated checkout tiers: Starter 1, Premium 3, Ultimate 5 testnet AUSD; Stage 1 maps these to three mixed-theme cards with 100/300/500 nominal sandbox cents, with submission and issuance disabled. Whole-contract rounding remains a decision for the live testnet demo.
+- Catalog starter remains 15 AUSD / three cards. Category pages quote optional `budgetCents` from $20, $50, $100, or custom $20–$250 on $5 steps. Still three cards; leftover cents go to the first cards. Zero platform fee.
 
 ## Updating this document
 
@@ -162,6 +165,12 @@ Next.js migration verification: `npm run typecheck`, all 11 API tests, and `npm 
 | --- | --- | --- |
 | 2026-10-11 | Repository scaffold, local demo, provider ports, API contract and CI added | Frontend starts FE-1/FE-2; backend starts BE-1/BE-2/BE-3 |
 | 2026-10-11 | Frontend migrated to Next.js App Router; API ownership and shared types retained | Frontend uses `src/app` routes and port 3000; build, tests and browser smoke checks pass |
+| 2026-10-11 | User selected Monad Cards as the primary reference, with black/white/silver palette; reference board updated and monochrome concept prepared | Superseded by the white/light-orange direction below |
+| 2026-10-11 | User scrapped the dark concept; selected bubbly white/light-orange UI and clearly differentiated genre packs. New interactive pack-picker and illustrative reveal concept prepared | Superseded by the Mobbin / realistic black-wrapper direction below |
+| 2026-10-11 | User selected Mobbin’s layout with realistic black foil packs. Generated original transparent ImPacks artwork and prepared a responsive interactive concept; genre filters, pack preview, and help panel verified | FE-1 implements this direction; this pass changes design references and assets only |
+
+| 2026-10-11 | Implemented Mobbin-style Next.js landing page, original foil artwork, accessible rotating categories, and preserved demo checkout/collection. Added an explicit ephemeral Vercel demo adapter around the existing server-owned service | Local typecheck/build and all 11 API tests pass. Local proxy, embedded production build, and https://impacks.vercel.app each passed catalog/login/opening/identical-retry/collection/logout checks. Responsive UI checked at 390px; no browser errors. Vercel project impacks uses apps/web and Node 24. GitHub auto-link failed; deployments use the CLI. Hosted memory can reset across instances; integrations remain simulated |
+| 2026-10-11 | Category pack pages at `/category/{theme}` with $20 / $50 / $100 / custom stakes; quote accepts optional `budgetCents` | Amazon-style shop removed. Frontend still opens three random cards; stake is the only scaled input |
 
 ## Open decisions
 
@@ -195,6 +204,11 @@ Next.js migration verification: `npm run typecheck`, all 11 API tests, and `npm 
   their owners before wiring checkout; these are outside this infrastructure task.
 
 - Choose login/wallet provider with the frontend team; target email or social login plus wallet attachment/embedded wallet.
+Motion handoff: the [opening specification](design/pack-opening/animation-spec.json) uses the user's selected black-and-gold wrapper, three accelerating 3D tear beats, rarity aura, and a lifted face-up card. Play, pause, replay, skip, chapter selection, and timeline scrubbing are available in the conversation prototype. Rarity colors and the single revealed card are illustrative; no rarity contract or probability mapping is implemented. Production must reveal the server's existing result and preserve actual order status. The prototype does not change application code or vendor integrations.
+
+October 11 motion revision: the tear now advances left to right in one-pixel increments along a ragged edge. A textured, perspective-projected foil mesh curls toward the viewer, exposes the silver underside, and remains connected to the intact right side until the tear passes. Local crease, fiber and light details follow the tear front. The strip releases only after reaching the far edge; the existing aura and card flip follow. Partial-tear views and playback were checked in the browser; this remains an isolated motion prototype, with production integration pending.
+
+- Privy selected for email, Google and wallet sign-in. Embedded wallet creation and wallet binding for payments remain future work.
 - Choose AUSD payment transport: ordinary testnet transfer verification first, or ERC-3009/x402 if the team can complete settlement and replay protection in time.
 - Choose a database and job/reconciliation approach before connecting external side effects.
 - Define refund/remainder handling and the mapping of demo users to Gemini sandbox accounts. A shared sandbox account does not create individual exchange-owned positions for each user.
@@ -253,3 +267,83 @@ Pre-push validation: all 119 tests, full typecheck and API/frontend build passed
 Node 24 Docker; staged diff whitespace checks passed. Refund broadcasting remains
 disabled and final settlement authorization remains blocked. User explicitly
 requested committing/pushing the current work to feature/ausd-payments.
+## October 11 landing + Privy update
+
+Landing now centers “Gamble on gambling.” with floating Bitcoin, Ethereum, NFL, MLB, WNBA and NBA logos. The main CTA navigates to `/login`; the black-foil category rail remains below. `/packs` retains the existing simulated opening/collection flow. Cards show side, spend and gross conditional demo payout ($1 per winning contract); pending/failed orders never display a confirmed holding or payout. Random selection is explicitly distinguished from better odds.
+
+`POST /api/auth/privy` accepts a Privy access token in the Authorization bearer header, verifies ES256 signature, issuer, app audience, required subject/expiry/issued-at against Privy’s public JWKS, and returns the existing demo Session DTO. The server identity is the verified Privy DID; local session expiry is capped to token expiry. The client exchanges after authentication and navigates to packs. App logout also ends Privy login. No app secret is needed or stored. Public app ID is configured locally and in Vercel.
+
+Evidence: local Privy modal loads with email, Google, wallet options; signature/issuer/audience/expiry rejection tests pass (13 API tests total). Actual user authentication still requires a user to complete their email/OAuth/wallet sign-in; do not call end-to-end identity verified yet. Payments, orders, fixtures and in-memory storage remain demo-only. Hosted state can reset.
+
+## October 11 wallet account update
+
+A site-wide Privy provider now configures automatic Ethereum embedded wallet creation for all users on login, with Base Sepolia as the supported/default chain. The top-right Connect wallet control leads through login; connected accounts show an address menu, testnet AUSD balance, copy/explorer/refresh and disconnect. Existing signed-in accounts without a wallet can explicitly create one. The login exchange waits for a connected wallet before navigating to packs. Embedded wallets are preferred; a linked external wallet is the fallback.
+
+Added public read-only `GET /api/wallets/:address/ausd` and shared WalletBalance DTO. The API reads the Agora token from Base Sepolia, verifies RPC chain ID and token decimals, and preserves exact atomic balance. RPC failures show unavailable, never a fabricated zero. Set optional server-only BASE_SEPOLIA_RPC_URL for a dedicated RPC. The public Base RPC returned a verified testnet balance during local testing; 15 API tests cover precision and invalid chain/token/RPC failure handling. Privy wallet creation itself requires completing real user sign-in and remains unverified end-to-end.
+
+AUSD settlement remains blocked on the project receiving wallet and durable payer/quote/payment verification; no transfer button, signature request or real debit has been enabled. Demo openings remain explicitly simulated and separate from the displayed on-chain balance.
+
+## October 11 category symbol expansion
+
+Added original SVG illustrations for Politics, Economics, Commodities, Business, Culture, Tech and Weather to the floating landing-page composition alongside the six existing crypto/sports marks. Desktop and 390px mobile positioning preserve the central headline and CTA; reduced-motion styling applies to the new symbols. This is a visual category expansion only, not a change to the available pack catalog or market providers. Typecheck, 15 API tests and production build pass; desktop/mobile composition checked with no horizontal overflow.
+
+## October 11 email-only sign-in
+
+Replaced provider selection with a direct email field and Privy one-time-code verification on `/login`. Removed Google and external-wallet login options from provider configuration and screen copy. Resend/change-email/retry states are included. Because Privy custom email authentication bypasses modal automatic wallet creation, the page explicitly creates an embedded wallet once after verified login, with a manual retry on failure, before the existing verified session exchange. No wallet is created before authentication. Existing wallet menu and AUSD balances are retained. Full OTP delivery/authentication requires a user-supplied email and remains unverified end-to-end.
+
+### Real organization marks in the landing hero (2026-10-11)
+
+- Replaced the generic category pictograms with actual Democratic/Republican party, Federal Reserve, Shell, eBay, Spotify, NVIDIA, and NOAA logo assets. Existing crypto and sports marks remain in the animated layout.
+- Logo sources and color adaptations are recorded in `apps/web/public/images/brands/SOURCES.md`; SVGs are served locally. Removed the unused `CategorySymbol` component.
+- Verified all 14 images load on desktop (1440px) and mobile (390px), with no horizontal overflow. Typecheck, all 15 API tests, and production build pass.
+
+### Logo collage pack editions (2026-10-11)
+
+- Replaced the central IM shield with real logo overlays on the shared pack artwork. Crypto uses BTC/ETH, Sports uses NFL/NBA/MLB/WNBA, and Chaos combines crypto, sports, tech, culture and business marks. Each wrapper reads Crypto Edition, Sports Edition or Chaos Edition. Catalog data, prices, and opening behavior are unchanged.
+- Built-in imagegen removed the shield from a sibling foil asset; original artwork is preserved. Logos and edition typography remain HTML/CSS overlays. Asset provenance and exact generation prompt: `apps/web/public/images/PACK-ARTWORK.md`.
+- Typecheck, all 15 API tests, and production build pass. Desktop/mobile catalog and desktop login fan visually checked; all pack assets load and mobile has no horizontal page overflow.
+
+### Centered logo fans (2026-10-11)
+
+- Tightened the pack logo overlays into centered, overlapping fans with angled outer marks and raised middle marks. Edition labels and foil artwork stay intact.
+- Desktop and 390px mobile checked; all pack images load without horizontal page overflow. Typecheck, 15 API tests and production build pass.
+
+### Remove demo wording from site copy (2026-10-11)
+
+- Removed the DEMO header badge and demo wording from pack prices, sign-in/fallback/sign-out controls, checkout, wallet text, payout copy, login note, footer and unavailable-service message. Brief simulation disclosures remain accurate; no real payment/trading integration was enabled.
+- Internal API modes, payment proof prefixes, storage keys and routes remain compatible. Verified visible text on landing, login and packs contains no standalone demo wording. Typecheck, all 15 API tests, and production build pass.
+
+### Ahrian local category fan revision (2026-10-11)
+
+- Centered the category pack fan and price rail as one group. Replaced the mirrored center-card stack with a 104-degree fan around a shared lower pivot, ordered left to right with the rightmost pack in front, matching the supplied playing-card reference.
+- Removed the white rounded card panels and center highlight; foil wrappers retain their transparent silhouette. Narrow layouts stack the price controls beneath the fan with no horizontal page overflow in browser checks. Five-pack and ten-pack states were checked; stake behavior is unchanged.
+- Local preview changes on `codex/ahrian-local-preview`; not deployed. Typecheck, all 16 API tests, and production build pass.
+
+### Category buy flow and signed-in account (2026-10-11)
+
+- Added a Buy pack CTA beside the stake picker and removed the category page’s separate display-name sign-in form. The category now waits for Privy, verifies any cached API session against that identity, and exchanges a current access token when the local session is absent or expired. No substitute account is created.
+- Email sign-in returns to an allowlisted pack route with the selected amount. Signed-in accounts can confirm random selection and open using their verified identity; wallet setup and account reconnection have explicit states. Changed accounts cannot reuse another user’s cached session or pending opening. Pending retries lock the amount and preserve the quote/key.
+- Typecheck, 17 API tests, six account-session/redirect tests, and production build pass. A verified-token integration test confirms quote/open/collection ownership and identical retries across renewed sessions. Browser checks verified the signed-out Buy CTA, email-only redirect and retained $50 selection. The browser was signed out, so real OTP sign-in/embedded-wallet creation remains unverified in this pass. Payments and trades are still simulated.
+- Includes the centered category fan revision above for integration into main; retain the Ahrian branch for ongoing work.
+
+
+### Collector dashboard (2026-10-11)
+
+- Added `/dashboard` using the verified Privy owner's portfolio. Opened packs become collectible card shelves with edition/status filters, search and card details. Pending/unknown/failed orders never count as holdings; closed cards remain collectible and leave open exposure/conditional payout totals. Category reveals link into Dashboard. Shared Home / Packs / Dashboard navigation remains visible on narrow screens; email login supports a Dashboard return path.
+- Added authenticated paper-only full-position closing with owner checks, explicit simulation acknowledgment and stable request identity. Client retry keys are owner-scoped; server concurrent requests share one result. Original buy receipts remain unchanged. Missing prices leave positions open; sandbox/live closing is unavailable. No AUSD redemption or live Gemini selling is enabled. Collections remain in memory and reset on service restart.
+- Dashboard scope is isolated from the uncommitted genre browser, welcome grants, pack animation and architecture work. The isolated dashboard-only snapshot passed typecheck, all 28 tests (19 API + 9 web), and the production build. Authenticated ownership/closing/retries are covered by API tests; real Privy dashboard interaction was not manually completed.
+
+## AUSD/main integration
+
+User authorized pushing AUSD work to main. Integrated current main's Privy identity,
+wallet balance, category budget and simulated dashboard APIs with the separate
+wallet-authenticated AUSD checkout. Both shared contracts and typed client methods
+are retained. The embedded serverless demo explicitly uses ephemeral storage and
+rejects wallet checkout/internal settlement; durable AUSD operations require the
+separate API. Payments/refund broadcasting remain disabled. No trading or transfers.
+
+Integration validation: 128 API tests and nine web tests passed in Node 24 Docker,
+along with typecheck and the full production build. Resolved declaration portability
+with an explicit viem client type and kept the SQLite runtime path out of Next's
+asset bundling. Main's frontend components and pack service are preserved. The
+embedded-demo isolation regression test passes. User authorized updating main.

@@ -1,0 +1,83 @@
+[
+  {
+    "file": "kenney-ui-pack.zip",
+    "url": "https://kenney.nl/media/pages/assets/ui-pack/f651646eab-1718203990/kenney_ui-pack.zip",
+    "license": "CC0-1.0",
+    "bytes": 1229750,
+    "sha256": "a8a14a234911eb648c062622915c93e79e94e97cb7f9f375a70f6617f1174318",
+    "retrieved": "2026-10-11",
+    "commit": null
+  },
+  {
+    "file": "kenney-playing-cards.zip",
+    "url": "https://kenney.nl/media/pages/assets/playing-cards-pack/4b345a2a5a-1677495915/kenney_playing-cards-pack.zip",
+    "license": "CC0-1.0",
+    "bytes": 191985,
+    "sha256": "b93b0313818e9c8f6acc24b008efdec1d8a6360b13afe953beed23881588be3c",
+    "retrieved": "2026-10-11",
+    "commit": null
+  },
+  {
+    "file": "magicui/LICENSE.md",
+    "url": "https://raw.githubusercontent.com/magicuidesign/magicui/85f97fd27b053339af74ba9dd4ca428ee25989fb/LICENSE.md",
+    "license": "MIT",
+    "bytes": 1060,
+    "sha256": "0147b84235ed916b8b4e89c1f80655351c5afe7d211b629be61f553a227b34ba",
+    "retrieved": "2026-10-11",
+    "commit": "85f97fd27b053339af74ba9dd4ca428ee25989fb"
+  },
+  {
+    "file": "magicui/magic-card.tsx",
+    "url": "https://raw.githubusercontent.com/magicuidesign/magicui/85f97fd27b053339af74ba9dd4ca428ee25989fb/apps/www/registry/magicui/magic-card.tsx",
+    "license": "MIT",
+    "bytes": 6314,
+    "sha256": "6139e78ed228ebca18ed144f4a2714a89214c2ef604f1f82bc2f61204c3f3fa3",
+    "retrieved": "2026-10-11",
+    "commit": "85f97fd27b053339af74ba9dd4ca428ee25989fb"
+  },
+  {
+    "file": "magicui/shine-border.tsx",
+    "url": "https://raw.githubusercontent.com/magicuidesign/magicui/85f97fd27b053339af74ba9dd4ca428ee25989fb/apps/www/registry/magicui/shine-border.tsx",
+    "license": "MIT",
+    "bytes": 1649,
+    "sha256": "c9344b563c2427f26393f6f5e2fe5c72d6a3fcb4b90b8f073ebad515e963c46c",
+    "retrieved": "2026-10-11",
+    "commit": "85f97fd27b053339af74ba9dd4ca428ee25989fb"
+  },
+  {
+    "file": "magicui/glare-hover.tsx",
+    "url": "https://raw.githubusercontent.com/magicuidesign/magicui/85f97fd27b053339af74ba9dd4ca428ee25989fb/apps/www/registry/magicui/glare-hover.tsx",
+    "license": "MIT",
+    "bytes": 4174,
+    "sha256": "db8084ae31fb41978ce5c2fc164e7d2c63cf414e3817fe444dca4ed177c9986f",
+    "retrieved": "2026-10-11",
+    "commit": "85f97fd27b053339af74ba9dd4ca428ee25989fb"
+  },
+  {
+    "file": "magicui/utils.ts",
+    "url": "https://raw.githubusercontent.com/magicuidesign/magicui/85f97fd27b053339af74ba9dd4ca428ee25989fb/apps/www/lib/utils.ts",
+    "license": "MIT",
+    "bytes": 3810,
+    "sha256": "e7c07dc285a0a7ad16ca4c94204ca97cb94face47004827fc6bece0d28a9394c",
+    "retrieved": "2026-10-11",
+    "commit": "85f97fd27b053339af74ba9dd4ca428ee25989fb"
+  },
+  {
+    "file": "magicui/registry-utils.ts",
+    "url": "https://raw.githubusercontent.com/magicuidesign/magicui/85f97fd27b053339af74ba9dd4ca428ee25989fb/apps/www/registry/lib/utils.ts",
+    "license": "MIT",
+    "bytes": 166,
+    "sha256": "7c8c3dfc0cdd370d44932828eb067ef771c8fe7996693221d5d4b90af6d54f2d",
+    "retrieved": "2026-10-11",
+    "commit": "85f97fd27b053339af74ba9dd4ca428ee25989fb"
+  },
+  {
+    "file": "magicui/shine-border.registry.json",
+    "url": "https://raw.githubusercontent.com/magicuidesign/magicui/85f97fd27b053339af74ba9dd4ca428ee25989fb/apps/www/public/r/shine-border.json",
+    "license": "MIT",
+    "bytes": 2428,
+    "sha256": "56329b539c8b1ddcf54566315674ceba1bfb06e8f5994cf9b6af0fd529e00ce6",
+    "retrieved": "2026-10-11",
+    "commit": "85f97fd27b053339af74ba9dd4ca428ee25989fb"
+  }
+]

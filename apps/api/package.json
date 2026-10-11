@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./app": {
+      "types": "./dist/app.d.ts",
+      "default": "./dist/app.js"
+    }
+  },
   "scripts": {
     "predev": "npm run build -w @impacks/contracts",
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
@@ -22,6 +28,8 @@
     "@impacks/contracts": "*",
     "fastify": "^5.6.2",
     "viem": "^2.57.4",
+    "jose": "6.2.12",
+    "light-my-request": "6.6.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {

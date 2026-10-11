@@ -1,17 +1,29 @@
 import { z } from "zod";
 
 export const routes = {
-  health: "/api/health", login: "/api/auth/demo", me: "/api/me",
+  health: "/api/health", privyLogin: "/api/auth/privy", login: "/api/auth/demo", me: "/api/me",
   logout: "/api/auth/logout", packs: "/api/packs", quotes: "/api/quotes",
   openings: "/api/openings", portfolio: "/api/portfolio", checkout: "/api/checkout",
   walletChallenge: "/api/auth/wallet/challenge", walletVerify: "/api/auth/wallet/verify",
   walletMe: "/api/auth/wallet/me", walletLogout: "/api/auth/wallet/logout",
   internalFulfillment: "/api/internal/checkout",
+  wallets: "/api/wallets",
 } as const;
 export const DISCLOSURE_VERSION = "random-v1";
 export const DISCLOSURE = "Markets are randomly selected within your theme. Each YES/NO side is chosen with a 50/50 chance. Opening a pack automatically submits the selected positions within your stated budget. Selection is not investment advice or a prediction of returns.";
 export const loginSchema = z.object({ displayName: z.string().trim().min(1).max(40) });
-export const quoteSchema = z.object({ packId: z.string().min(1).max(80) });
+export const MIN_PACK_CENTS = 2000;
+export const MAX_PACK_CENTS = 25000;
+export const PACK_BUDGET_STEP_CENTS = 500;
+export const PACK_PRICE_PRESETS_DOLLARS = [20, 50, 100] as const;
+export function centsToAtomic(cents: number): string {
+  return String(cents * 10_000);
+}
+export const quoteSchema = z.object({
+  packId: z.string().min(1).max(80),
+  budgetCents: z.number().int().min(MIN_PACK_CENTS).max(MAX_PACK_CENTS)
+    .refine(value => value % PACK_BUDGET_STEP_CENTS === 0, "Budget must land on a $5 step.").optional(),
+});
 export const openSchema = z.object({
   quoteId: z.string().uuid(), disclosureVersion: z.literal(DISCLOSURE_VERSION),
   paymentProof: z.string().min(1).max(16384),
@@ -81,6 +93,7 @@ export interface CheckoutPurchase {
   paymentBlockHash: string | null;
   paymentLogIndex: number | null;
 }
+export const closePositionSchema = z.object({ confirmSimulation: z.literal(true) });
 export type Theme = "crypto" | "sports" | "mixed";
 export type Side = "YES" | "NO";
 export interface User { id: string; displayName: string }
@@ -101,11 +114,12 @@ export interface Market {
 export interface Card {
   id: string; marketId: string; question: string; side: Side;
   allocationCents: number; priceCents: number;
+  position?: { status: "open" | "closed"; closedAt?: string; exitPriceCents?: number; proceedsCents?: number };
   order: { id: string | null; status: "filled" | "pending" | "failed" | "unknown";
     quantity: number; spentCents: number; message?: string };
 }
 export interface Opening {
-  id: string; quoteId: string; packName: string; createdAt: string;
+  id: string; quoteId: string; packName: string; createdAt: string; theme?: Theme;
   status: "completed" | "partial" | "pending" | "failed";
   payment: { status: "confirmed" | "failed" | "unknown"; reference: string | null };
   cards: Card[]; mode: "demo" | "sandbox";
@@ -154,3 +168,4 @@ export interface AusdRefund {
   blockers: string[]; broadcastEnabled: false; transactionHash: string | null;
   createdAt: string; updatedAt: string; confirmedAt: string | null;
 }
+export interface WalletBalance { address: string; chainId: 84532; asset: "AUSD"; tokenAddress: string; balanceAtomic: string; formatted: string; network: "Base Sepolia" }

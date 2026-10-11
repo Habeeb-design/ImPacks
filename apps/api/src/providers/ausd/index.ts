@@ -1,5 +1,5 @@
 import { AUSD_BASE_SEPOLIA } from "@impacks/contracts";
-import { createPublicClient, erc20Abi, getAddress, http, isAddress, zeroAddress } from "viem";
+import { createPublicClient, erc20Abi, getAddress, http, isAddress, zeroAddress, type PublicClient, type HttpTransport } from "viem";
 import { baseSepolia } from "viem/chains";
 
 /** Server-only configuration. No signer or private key is needed for reads. */
@@ -24,7 +24,7 @@ export function readAusdConfig(env: NodeJS.ProcessEnv = process.env) {
   };
 }
 
-export function createAusdClient(config: ReturnType<typeof readAusdConfig>) {
+export function createAusdClient(config: ReturnType<typeof readAusdConfig>): PublicClient<HttpTransport, typeof baseSepolia> {
   return createPublicClient({
     chain: baseSepolia,
     transport: http(config.rpcUrl, { timeout: 10_000, retryCount: 1 }),

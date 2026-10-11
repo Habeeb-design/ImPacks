@@ -1,11 +1,11 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CheckoutPurchase } from "@impacks/contracts";
 import { HttpError } from "../errors.js";
 
-export const defaultCheckoutDatabasePath = fileURLToPath(new URL("../../data/checkout.sqlite", import.meta.url));
+export const defaultCheckoutDatabasePath = resolve(dirname(fileURLToPath(import.meta.url)), "../../data/checkout.sqlite");
 export interface PaymentEvidence {
   transactionHash: string;
   blockNumber: string;

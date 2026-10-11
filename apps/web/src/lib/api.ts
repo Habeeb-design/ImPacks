@@ -1,4 +1,4 @@
-import { routes, type ApiErrorBody, type CheckoutPurchase, type CheckoutRequest, type VerifyCheckoutRequest, type Opening, type OpenRequest, type Pack, type Portfolio, type Quote, type Session, type WalletChallenge, type WalletSignatureRequest, type WalletSession, type WalletIdentity } from "@impacks/contracts";
+import { routes, type ApiErrorBody, type CheckoutPurchase, type CheckoutRequest, type VerifyCheckoutRequest, type Opening, type OpenRequest, type Pack, type Portfolio, type Quote, type Session, type WalletChallenge, type WalletSignatureRequest, type WalletSession, type WalletIdentity, type WalletBalance } from "@impacks/contracts";
 const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); }
@@ -23,11 +23,14 @@ export const api = {
   createCheckout: (token: string, body: CheckoutRequest) => request<CheckoutPurchase>(routes.checkout, token, body),
   checkout: (token: string, purchaseId: string) => request<CheckoutPurchase>(`${routes.checkout}/${encodeURIComponent(purchaseId)}`, token),
   verifyCheckout: (token: string, purchaseId: string, body: VerifyCheckoutRequest) => request<CheckoutPurchase>(`${routes.checkout}/${encodeURIComponent(purchaseId)}/verify`, token, body),
+  closePosition: (token: string, openingId: string, cardId: string, key: string) => request<Opening>(`${routes.openings}/${encodeURIComponent(openingId)}/cards/${encodeURIComponent(cardId)}/close`, token, { confirmSimulation: true }, key),
+  walletBalance: (address: string) => request<WalletBalance>(`${routes.wallets}/${encodeURIComponent(address)}/ausd`),
+  privyLogin: (accessToken: string) => request<Session>(routes.privyLogin, accessToken, {}),
   login: (displayName: string) => request<Session>(routes.login, undefined, { displayName }),
   me: (token: string) => request<{ user: Session["user"] }>(routes.me, token),
   logout: (token: string) => request<void>(routes.logout, token, {}),
   packs: () => request<{ packs: Pack[] }>(routes.packs),
-  quote: (token: string, packId: string) => request<Quote>(routes.quotes, token, { packId }),
+  quote: (token: string, packId: string, budgetCents?: number) => request<Quote>(routes.quotes, token, { packId, ...(budgetCents !== undefined ? { budgetCents } : {}) }),
   open: (token: string, body: OpenRequest, key: string) => request<Opening>(routes.openings, token, body, key),
   portfolio: (token: string) => request<Portfolio>(routes.portfolio, token),
 };

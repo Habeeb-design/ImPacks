@@ -5,9 +5,12 @@ import { geminiProviders } from "./providers/gemini.js";
 import { executionReportSchema } from "@impacks/contracts";
 import type { MarketProvider } from "./providers/ports.js";
 import Fastify from "fastify";
+import { readAusdBalance } from "./services/wallet.js";
+import { createPrivyVerifier } from "./privy.js";
+import type { JWTVerifyGetKey } from "jose";
 import { randomBytes, randomUUID } from "node:crypto";
 import { ZodError } from "zod";
-import { checkoutParamsSchema, checkoutSchema, verifyCheckoutSchema, loginSchema, openSchema, quoteSchema, routes, type User } from "@impacks/contracts";
+import { closePositionSchema, checkoutParamsSchema, checkoutSchema, verifyCheckoutSchema, loginSchema, openSchema, quoteSchema, routes, type User } from "@impacks/contracts";
 import { demoProviders, packs } from "./providers/demo.js";
 import type { Providers } from "./providers/ports.js";
 import { PackService } from "./services/packs.js";
@@ -20,14 +23,18 @@ import { emptyBodySchema, walletChallengeSchema, walletSignatureSchema, fulfillm
 import { WalletAuthService } from "./services/wallet-auth.js";
 import { FulfillmentService, authorizeFulfillment } from "./services/fulfillment.js";
 
-export function buildApp(options: { mode?: string; providers?: Providers; checkoutRecipientAddress?: string;
+export { default as injectRequest } from "light-my-request";
+
+export function buildApp(options: { ephemeralDemo?: boolean; privyAppId?: string; privyKey?: JWTVerifyGetKey; mode?: string; providers?: Providers; checkoutRecipientAddress?: string;
   checkoutDatabasePath?: string; paymentVerifier?: PaymentVerifier; appOrigin?: string; internalFulfillmentKey?: string; executionMarkets?: MarketProvider } = {}) {
   if ((options.mode ?? "demo") !== "demo") throw new Error("Only demo mode is wired. Implement verified identity, durable storage, AUSD and Gemini providers before enabling sandbox.");
+  const privyAppId = options.privyAppId ?? process.env.PRIVY_APP_ID ?? process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const verifyPrivy = privyAppId ? createPrivyVerifier(privyAppId, options.privyKey) : null;
   const app = Fastify({ bodyLimit: 32_768 });
   const sessions = new Map<string, { user: User; expiresAt: number }>();
   const service = new PackService(packs, options.providers ?? demoProviders());
-  const databasePath = options.checkoutDatabasePath ?? process.env.AUSD_DATABASE_PATH ?? defaultCheckoutDatabasePath;
-  if (databasePath === ":memory:" && options.checkoutDatabasePath !== ":memory:") {
+  const databasePath = options.ephemeralDemo ? ":memory:" : options.checkoutDatabasePath ?? process.env.AUSD_DATABASE_PATH ?? defaultCheckoutDatabasePath;
+  if (databasePath === ":memory:" && options.checkoutDatabasePath !== ":memory:" && !options.ephemeralDemo) {
     throw new Error("AUSD_DATABASE_PATH must point to durable storage. In-memory SQLite is for injected tests only.");
   }
   const checkoutStore = new CheckoutStore(databasePath);
@@ -40,6 +47,12 @@ export function buildApp(options: { mode?: string; providers?: Providers; checko
   const execution = new ExecutionService(checkoutStore, options.executionMarkets ?? geminiProviders().markets);
   app.addHook("onRequest", async (request, reply) => {
     if (request.url.startsWith(routes.checkout)) reply.header("Cache-Control", "no-store");
+  });
+  app.addHook("preHandler", async request => {
+    const path = request.routeOptions.url ?? "";
+    if (options.ephemeralDemo && (path.startsWith(routes.checkout) || path.startsWith("/api/auth/wallet/") || path.startsWith(routes.internalFulfillment))) {
+      throw new HttpError(503, "DURABLE_API_REQUIRED", "Use the separately hosted durable API for wallet checkout and settlement.");
+    }
   });
   function user(authorization?: string): User {
     const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
@@ -57,12 +70,22 @@ export function buildApp(options: { mode?: string; providers?: Providers; checko
     const status = typeof candidate === "number" && candidate >= 400 && candidate < 500 ? candidate : 500;
     return reply.code(status).send({ error: { code: status === 500 ? "INTERNAL_ERROR" : "INVALID_REQUEST", message: status === 500 ? "Request failed. Retry with the same idempotency key." : "Invalid request." } });
   });
-  app.get(routes.health, async () => ({ ok: true, mode: "demo", integrations: { auth: "simulated", payments: "simulated", markets: "fixtures", orders: "simulated", storage: "memory" } }));
+  app.get(routes.health, async () => ({ ok: true, mode: "demo", integrations: { auth: verifyPrivy ? "privy+demo" : "simulated", payments: "simulated", markets: "fixtures", orders: "simulated", storage: "memory" } }));
   app.post(routes.login, async request => {
     const { displayName } = loginSchema.parse(request.body);
     const token = randomBytes(32).toString("hex");
     const identity = { id: randomUUID(), displayName };
     sessions.set(token, { user: identity, expiresAt: Date.now() + 24 * 60 * 60_000 });
+    return { token, user: identity, mode: "demo" };
+  });
+  app.post(routes.privyLogin, async request => {
+    if (!verifyPrivy) throw new HttpError(503, "AUTH_UNAVAILABLE", "Sign-in is not available yet. Please try again shortly.");
+    const accessToken = request.headers.authorization?.startsWith("Bearer ") ? request.headers.authorization.slice(7) : "";
+    if (!accessToken) throw new HttpError(401, "UNAUTHORIZED", "Sign in to continue.");
+    const verified = await verifyPrivy(accessToken);
+    const token = randomBytes(32).toString("hex");
+    const identity = { id: verified.id, displayName: "Collector" };
+    sessions.set(token, { user: identity, expiresAt: verified.expiresAt });
     return { token, user: identity, mode: "demo" };
   });
   app.get(routes.me, async request => ({ user: user(request.headers.authorization), mode: "demo" }));
@@ -71,6 +94,7 @@ export function buildApp(options: { mode?: string; providers?: Providers; checko
     sessions.delete(request.headers.authorization!.slice(7));
     return reply.code(204).send();
   });
+  app.get<{Params:{address:string}}>(`${routes.wallets}/:address/ausd`, async request => readAusdBalance(request.params.address));
   app.get(routes.packs, async () => ({ packs }));
   app.register(async walletRoutes => {
     walletRoutes.addHook("onRequest", async (_request, reply) => { reply.header("Cache-Control", "no-store"); });
@@ -134,7 +158,10 @@ export function buildApp(options: { mode?: string; providers?: Providers; checko
     internal.post(`${path}/renew`, async request => fulfillment.renew(checkoutParamsSchema.parse(request.params).purchaseId, fulfillmentAttemptSchema.parse(request.body)));
     internal.post(`${path}/complete`, async request => fulfillment.complete(checkoutParamsSchema.parse(request.params).purchaseId, fulfillmentCompleteSchema.parse(request.body)));
   });
-  app.post(routes.quotes, async request => service.quote(user(request.headers.authorization).id, quoteSchema.parse(request.body).packId));
+  app.post(routes.quotes, async request => {
+    const body = quoteSchema.parse(request.body);
+    return service.quote(user(request.headers.authorization).id, body.packId, body.budgetCents);
+  });
   app.post(routes.openings, async request => {
     const identity = user(request.headers.authorization);
     const body = openSchema.parse(request.body);
@@ -144,5 +171,12 @@ export function buildApp(options: { mode?: string; providers?: Providers; checko
   });
   app.get<{ Params: { id: string } }>(`${routes.openings}/:id`, async request => service.get(user(request.headers.authorization).id, request.params.id));
   app.get(routes.portfolio, async request => ({ openings: service.portfolio(user(request.headers.authorization).id) }));
+  app.post<{ Params: { id: string; cardId: string } }>(`${routes.openings}/:id/cards/:cardId/close`, async request => {
+    const identity = user(request.headers.authorization);
+    closePositionSchema.parse(request.body);
+    const key = request.headers["idempotency-key"];
+    if (typeof key !== "string" || !/^[a-zA-Z0-9_-]{8,128}$/.test(key)) throw new HttpError(400, "INVALID_KEY", "Supply an Idempotency-Key of 8–128 letters, digits, hyphens or underscores.");
+    return service.closePosition(identity.id, request.params.id, request.params.cardId, key);
+  });
   return app;
 }

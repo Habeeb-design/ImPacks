@@ -42,7 +42,13 @@ npm run start:api     # built API, after build
 npm run start:web     # Next.js production server, after build
 ```
 
-App-local `.env.example` files document configuration. Copy to `.env` in the same app only when overriding defaults. `NEXT_PUBLIC_*` values are public and inlined at build time; secrets belong in the API app only. Set `API_PROXY_TARGET` before building for a separately hosted API.
+App-local `.env.example` files document configuration. Copy to `.env` in the same app only when overriding defaults. `NEXT_PUBLIC_*` values are public and inlined at build time; secrets belong in the API app only. Set `API_PROXY_TARGET` for a separately hosted API. The Next.js API route proxies to this origin by default and reports an unavailable API instead of falling back to fixtures.
+
+## Vercel demo
+
+Live demo: [impacks.vercel.app](https://impacks.vercel.app). Deployments currently use the Vercel CLI; automatic GitHub deployment is not connected.
+
+Set the Vercel project root directory to `apps/web`, Node.js to `24.x`, and deploy from the repository root with the included `vercel.json`. The build compiles shared contracts and the API before Next.js. `IMPACKS_EMBEDDED_DEMO=1` explicitly hosts the existing simulated Fastify service within the Next.js server route. All random selection and retry logic remain server-side. Sessions, quotes, and collections live only in a warm process and can reset or become unavailable when serverless instances change; this is a visual/functional demo, not durable trading infrastructure. Real providers require a separately hosted durable API and `IMPACKS_EMBEDDED_DEMO=0`.
 
 ## MVP decisions
 

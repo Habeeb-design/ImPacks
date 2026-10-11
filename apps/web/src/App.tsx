@@ -3,7 +3,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { DISCLOSURE, DISCLOSURE_VERSION, type Opening, type Pack, type Quote, type Session } from "@impacks/contracts";
 import { api, ApiError } from "./lib/api";
-import { PackTile } from "./components/PackTile";
+import { PackCarousel } from "./components/PackCarousel";
+import { LandingHero } from "./components/LandingHero";
+import { WalletAccount } from "./components/WalletAccount";
 import { PredictionCard } from "./components/PredictionCard";
 
 const sessionKey = "impacks.demo.session";
@@ -12,7 +14,7 @@ type Attempt = { userId: string; quote: Quote; key: string };
 function readStored<T>(key: string): T | null {
   try { return JSON.parse(sessionStorage.getItem(key) ?? "null") as T | null; } catch { return null; }
 }
-export function App() {
+export function App({ landing = false }: { landing?: boolean }) {
   const [session, setSession] = useState<Session | null>(null);
   const [name, setName] = useState("");
   const [packs, setPacks] = useState<Pack[]>([]);
@@ -74,21 +76,23 @@ export function App() {
   async function logout() {
     if (!session) return;
     setBusy(true);
-    try { await api.logout(session.token); clearSession(); }
+    try { await api.logout(session.token); clearSession(); if (session.user.id.startsWith("did:privy:")) window.location.assign("/login?logout=1"); }
     catch (cause) { showError(cause); }
     finally { setBusy(false); }
   }
 
   return <main>
-    <header><a className="logo" href="/">im<span>packs</span><sup>✳</sup></a><div className="account"><span className="badge">LOCAL DEMO</span>{session && <button className="text-button" onClick={() => void logout()} disabled={busy}>{session.user.displayName} · Log out</button>}</div></header>
-    <section className="intro"><p className="eyebrow">A LITTLE CHANCE. A NEW PERSPECTIVE.</p><h1>Big questions.<br/><span>Small packs.</span></h1><p>Pick your world. Rip a pack. Discover your next three predictions.</p></section>
-    <p className="demo-note">Development preview · Payments and trades are simulated. No money moves.</p>
+    <header className="site-header app-header"><a className="logo" href="/">im<span>packs</span><sup>®</sup></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/packs">Packs</a><a href="/dashboard">Dashboard</a></nav><div className="account"><WalletAccount/>{session && !session.user.id.startsWith("did:privy:") && <button className="text-button demo-logout" onClick={() => void logout()} disabled={busy}>Sign out</button>}</div></header>
+    {landing ? <LandingHero/> : <section className="pack-page-intro"><p className="eyebrow">A SURPRISE WORTH FOLLOWING</p><h1>Pick your world.</h1><p>One pack. Three predictions. See where they take you.</p></section>}
     {error && <p className="error" role="alert">{error}</p>}
-    {!session ? <form className="login-panel" onSubmit={event => void login(event)}><div><h2>Your next prediction starts here.</h2><p>Use a display name to explore the demo.</p></div><label>Your name<input value={name} onChange={event => setName(event.target.value)} required maxLength={40} autoComplete="nickname" placeholder="Enter your name"/></label><button className="primary" disabled={busy || !name.trim()}>{busy ? "Logging in…" : "Enter demo →"}</button></form> : <>
-      <section aria-labelledby="packs-title"><div className="section-heading"><h2 id="packs-title">Choose your pack</h2><span>3 cards · 15 demo AUSD</span></div><div className="pack-grid">{packs.map(p => <PackTile key={p.id} pack={p} selected={selected === p.id} disabled={busy || !!attempt} onSelect={() => { setSelected(p.id); setAccepted(false); }}/>)}</div></section>
-      <section className="checkout"><label className="disclosure"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} disabled={busy}/><span>{DISCLOSURE}<br/><strong>15 demo AUSD total · 5 per card · no platform fee.</strong></span></label><button className="primary" onClick={() => void openPack()} disabled={!accepted || busy || !pack}>{busy ? "Opening your pack…" : attempt ? "Retry same opening →" : "Open pack · 15 demo AUSD →"}</button>{attempt && <small>Retrying preserves your original pack and avoids another payment attempt.</small>}</section>
-      <section aria-labelledby="collection-title"><div className="section-heading"><h2 id="collection-title">Your collection</h2><span>{openings.length} packs opened</span></div>{openings.length === 0 ? <p className="empty">A fresh collection. Your first three cards are waiting.</p> : openings.map(opening => <div className="opening" key={opening.id}><div className="section-heading"><h3>{opening.packName}</h3><span>{opening.status} · payment {opening.payment.status}</span></div><div className="card-grid">{opening.cards.map(card => <PredictionCard key={card.id} card={card}/>)}</div></div>)}</section>
+    {packs.length > 0 ? <PackCarousel packs={packs} selected={selected} disabled={busy || !!attempt} onSelect={id => { setSelected(id); setAccepted(false); }} /> : <p className="catalog-loading" role="status">{error ? "The pack catalog is unavailable. Please refresh to try again." : "Unwrapping the collection…"}</p>}
+    {!landing && <><section id="checkout" className="checkout-area">
+      <p className="demo-note">Payments and trades are simulated. No money moves. Sessions may reset.</p>
+      {!session ? <form className="login-panel" onSubmit={event => void login(event)}><div><p className="eyebrow">YOUR FIRST PACK IS WAITING</p><h2>Let curiosity take over.</h2><p>Choose a display name to explore packs.</p></div><label>Your name<input value={name} onChange={event => setName(event.target.value)} required maxLength={40} autoComplete="nickname" placeholder="Enter your name"/></label><button className="primary" disabled={busy || !name.trim()}>{busy ? "Logging in…" : "Explore packs →"}</button></form> : <section className="checkout" aria-labelledby="checkout-title"><div><p className="eyebrow">YOUR NEXT THREE PREDICTIONS</p><h2 id="checkout-title">{attempt?.quote.pack.name ?? pack?.name ?? "Choose a pack"}</h2></div><label className="disclosure"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} disabled={busy}/><span>{DISCLOSURE}<br/><strong>15 AUSD total · 5 per card · no platform fee.</strong></span></label><button className="primary" onClick={() => void openPack()} disabled={!accepted || busy || !pack}>{busy ? "Opening your pack…" : attempt ? "Retry same opening →" : "Open pack · 15 AUSD →"}</button>{attempt && <small>Retrying preserves your original pack and avoids another payment attempt.</small>}</section>}
+    </section>
+    {session && <section id="collection" aria-labelledby="collection-title"><div className="section-heading"><h2 id="collection-title">Your collection</h2><span>{openings.length} packs opened</span></div>{openings.length === 0 ? <p className="empty">A fresh collection. Your first three cards are waiting.</p> : openings.map(opening => <div className="opening" key={opening.id}><div className="section-heading"><h3>{opening.packName}</h3><span>{opening.status} · payment {opening.payment.status}</span></div><div className="card-grid">{opening.cards.map(card => <PredictionCard key={card.id} card={card}/>)}</div></div>)}</section>}
     </>}
-    <footer>ImPacks / Hackathon starter <span>AUSD payments + Gemini Predictions integration points</span></footer>
+    <section className="how-section" id="how" aria-labelledby="how-title"><p className="eyebrow">A LITTLE CHANCE. A NEW PERSPECTIVE.</p><h2 id="how-title">First, reveal your bets. Then, follow the story.</h2><div className="how-steps"><div><span>01</span><h3>Choose your world.</h3><p>Crypto, sports, or a mix of both. Follow whatever catches your curiosity.</p></div><div><span>02</span><h3>Reveal your positions.</h3><p>Three randomly selected markets. Random YES or NO sides. Review the budget before opening.</p></div><div><span>03</span><h3>Follow what happens.</h3><p>See what needs to happen, your YES or NO side, what you spent, and what a win could pay.</p></div></div><p className="chance-note">Random selection changes which bets you get. It doesn’t improve their odds.</p></section>
+    <footer><span>imPacks / Gamble on gambling.</span><span>Payments and trades are simulated</span></footer>
   </main>;
 }

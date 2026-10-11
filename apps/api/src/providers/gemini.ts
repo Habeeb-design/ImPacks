@@ -1,10 +1,11 @@
+import { geminiPacks } from "./gemini-catalog.js";
 import type { Market, Theme } from "@impacks/contracts";
 import type { Providers } from "./ports.js";
 
 // Nine-genre discovery from mekila, reconciled with durable checkout.
 // Production discovery is not sandbox tradability evidence; submission stays disabled.
 const MARKET_BASE = "https://api.gemini.com";
-const ALL_CATEGORIES: Exclude<Theme, "mixed">[] = ["crypto", "sports", "politics", "economics", "commodities", "business", "culture", "tech", "weather"];
+const ALL_CATEGORIES = geminiPacks.map(pack => pack.theme).filter((theme): theme is Exclude<Theme, "mixed"> => theme !== "mixed");
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${MARKET_BASE}${path}`, { signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error("Gemini market discovery unavailable.");

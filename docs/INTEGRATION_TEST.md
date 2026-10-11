@@ -1,6 +1,6 @@
 # Integration branch handoff
 
-Branch: `codex/integration-ui-backend`. Keep main unchanged until the user finishes integration testing.
+Branch: `codex/integration-ui-backend`. The user has authorized main promotion after integrating Mekila's changes and completing checks. The walkthrough below still records required manual and vendor validation.
 
 ## What is combined
 
@@ -8,6 +8,7 @@ Branch: `codex/integration-ui-backend`. Keep main unchanged until the user finis
 - Previously local work: genre browser, approved one-wrapper/three-card reveal, Ethereum Sepolia wallet and welcome grants, architecture specifications.
 - AUSD branch: SQLite checkout, wallet-signature ownership, receipt verification, fulfillment leases, durable selection/order intents, refund preparation, diagnostics and Docker environment.
 - Mekila: nine-genre Gemini discovery and shared Theme definitions. Its unverified payment proof echo and ungated order submission are superseded by the verified checkout and disabled execution ports. The original code is preserved in Git history.
+- Additional Mekila port: all ten catalog definitions and a server-only HMAC/sandbox buy-request builder using persisted order limits. The builder does not send requests; a durable submitting/reconciling worker is still required.
 - Posttrade: the Trade navigation, marketplace, durable paper resale ledger, and remaining-ownership projection in Dashboard. Paper holdings and simulated cash remain separate from testnet checkout.
 
 ## Current boundaries
@@ -73,4 +74,4 @@ For production-style local testing after building, run `npm run start:api` and `
 9. Test unavailable RPC/Gemini/API states. Errors must stay visible and retries must preserve purchase/selection identity. Embedded Vercel mode must report checkout unavailable.
 10. Open **Trade** (`/marketplace`) with two Privy test accounts. Account A opens a simulated pack, lists some quantity, and account B purchases it. Check reserved/remaining quantity, both paper balances, Dashboard ownership and trade history. Retry the same saved request and restart the API to confirm no duplicate transfer. With the paper ledger enabled, the former full-position close action is replaced by marketplace management. Follow [POSTTRADE.md](POSTTRADE.md) for detailed checks; real checkout fills and AUSD balances do not enter this paper ledger.
 
-Record results and any remaining failures in `docs/TEAM.md` before promoting to main. CI and this checklist do not replace the user's Privy/wallet or live vendor integration test.
+Record walkthrough results and any remaining failures in `docs/TEAM.md`. CI and this checklist do not replace the user's Privy/wallet or live vendor integration test.

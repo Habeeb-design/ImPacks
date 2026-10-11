@@ -60,6 +60,13 @@ These are responsibilities within two teams, not four required people. Frontend 
 
 ## Handoff log
 
+### Additional Mekila reconciliation before main promotion (2026-10-11)
+
+- Latest fetched `mekila` is `0713d7c`; its history already belongs to the integration branch. Retained its ten pack definitions in `providers/gemini-catalog.ts`, used by nine-category Gemini discovery and the existing three-edition demo catalog. Definitions alone do not enable purchases for the seven preview genres.
+- Ported Mekila's HMAC-SHA384 authentication and sandbox limit-buy payload into `providers/gemini-sandbox.ts`. The request builder consumes persisted selection, quantity, limit, fee reservation, client order ID and caller-provided durable nonce. It performs no HTTP request or terms acceptance. It rejects previously observed orders and requests that exceed the frozen budget.
+- The old proof-echo payment implementation and direct startup-to-order path are not activated: they bypass verified checkout and durable submission/reconciliation. A submitting worker, per-key nonce coordination, verified vendor protocol/fees, and final settlement remain outstanding. Authentication/request construction is integrated code, not evidence of a completed Gemini trade.
+- User authorized promotion to main and clarified that the additional branch meant Mekila. No four-person assignment is being created. Final validation passed: typecheck, all 194 tests (164 API + 30 web), production build and diff whitespace checks. Live execution remains disabled.
+
 Wallet ownership and fulfillment authorization — October 11, 2026: five-minute
 EIP-191/SIWE challenges now bind a 256-bit server nonce, wallet, Base Sepolia chain,
 configured application origin/domain, issue time and expiry. viem verifies the exact
@@ -411,7 +418,7 @@ The category UI keeps its $20/$50/$100/custom budget and three predictions. Addi
 
 Category checkout and Dashboard payment history now connect to wallet authentication, receipt verification, persisted selection preparation and owner-only execution/refund status. Reveals use stored results, never a client-side redraw. Checkout creation, signature and preparation do not transfer funds. Actual Gemini submissions and refund broadcasting remain disabled pending vendor execution/reconciliation; the simulated opening/closing flow remains explicitly labeled. Public UI cannot access internal fulfillment credentials or report fills. Embedded Vercel demo rejects persistent checkout operations.
 
-Final handoff: [integration test guide](INTEGRATION_TEST.md). Do not promote this branch to main before the user's integration test.
+Final handoff: [integration test guide](INTEGRATION_TEST.md). The user subsequently authorized main promotion; the manual and vendor tests remain outstanding.
 
 Mekila reconciliation: merged its branch history and retained nine-genre Gemini discovery and expanded shared Theme definitions. The current three fixture-backed opening editions and seven preview genres stay honest about availability. Its proof-echo payment method and unaudited submission path are superseded by receipt verification and durable execution preparation; startup still refuses sandbox mode. Original implementation remains available in its source commits. The current package lock is retained because the older branch's lockfile rewrite would discard newer dependencies.
 

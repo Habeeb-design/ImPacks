@@ -19,7 +19,7 @@ async function handle(request: Request) {
         body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer(),
       });
     } catch {
-      return Response.json({ error: { code: "API_UNAVAILABLE", message: "The demo API is unavailable. Please try again shortly." } }, { status: 503 });
+      return Response.json({ error: { code: "API_UNAVAILABLE", message: "The service is unavailable. Please try again shortly." } }, { status: 503 });
     }
   }
 

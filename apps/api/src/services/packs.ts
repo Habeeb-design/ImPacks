@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { AUSD_BASE_SEPOLIA, DISCLOSURE_VERSION, type Card, type Market, type Opening, type Pack, type Quote } from "@impacks/contracts";
+import { AUSD_BASE_SEPOLIA, DISCLOSURE_VERSION, centsToAtomic, type Card, type Market, type Opening, type Pack, type Quote } from "@impacks/contracts";
 import { HttpError } from "../errors.js";
 import type { Providers } from "../providers/ports.js";
 
@@ -30,9 +30,16 @@ export class PackService {
   private history = new Map<string, { userId: string; value: Opening }>();
   constructor(private packs: Pack[], private providers: Providers) {}
 
-  quote(userId: string, packId: string): Quote {
-    const pack = this.packs.find(p => p.id === packId);
-    if (!pack) throw new HttpError(404, "PACK_NOT_FOUND", "Pack not found.");
+  quote(userId: string, packId: string, budgetCents?: number): Quote {
+    const catalog = this.packs.find(p => p.id === packId);
+    if (!catalog) throw new HttpError(404, "PACK_NOT_FOUND", "Pack not found.");
+    const budget = budgetCents ?? catalog.budgetCents;
+    const pack: Pack = {
+      ...catalog,
+      budgetCents: budget,
+      priceAtomic: centsToAtomic(budget),
+      name: budget === catalog.budgetCents ? catalog.name : `${catalog.name} · $${(budget / 100).toFixed(0)}`,
+    };
     const value: Quote = {
       id: randomUUID(), pack, expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(), disclosureVersion: DISCLOSURE_VERSION,
       payment: { mode: "demo", asset: "AUSD", amountAtomic: pack.priceAtomic, chainId: AUSD_BASE_SEPOLIA.chainId, tokenAddress: AUSD_BASE_SEPOLIA.tokenAddress, recipient: null },

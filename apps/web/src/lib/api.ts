@@ -22,7 +22,7 @@ export const api = {
   me: (token: string) => request<{ user: Session["user"] }>(routes.me, token),
   logout: (token: string) => request<void>(routes.logout, token, {}),
   packs: () => request<{ packs: Pack[] }>(routes.packs),
-  quote: (token: string, packId: string) => request<Quote>(routes.quotes, token, { packId }),
+  quote: (token: string, packId: string, budgetCents?: number) => request<Quote>(routes.quotes, token, { packId, ...(budgetCents !== undefined ? { budgetCents } : {}) }),
   open: (token: string, body: OpenRequest, key: string) => request<Opening>(routes.openings, token, body, key),
   portfolio: (token: string) => request<Portfolio>(routes.portfolio, token),
 };

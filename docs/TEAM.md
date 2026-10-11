@@ -47,7 +47,7 @@ These are responsibilities within two teams, not four required people. Frontend 
 - Random selection runs on the server once per attempt. Refresh/retry returns the same result.
 - Never describe a pending/unknown order as a holding or a simulated receipt as on-chain settlement.
 - All keys stay server-side. Agree together before adding or renaming a required contract field.
-- Fixed 15 AUSD pack, three cards, 5-unit budget each, zero platform fee for the starter. Whole-contract rounding leaves a remainder; decide handling before the live testnet demo.
+- Catalog starter remains 15 AUSD / three cards. Category pages quote optional `budgetCents` from $20, $50, $100, or custom $20–$250 on $5 steps. Still three cards; leftover cents go to the first cards. Zero platform fee.
 
 ## Updating this document
 
@@ -69,6 +69,7 @@ Next.js migration verification: `npm run typecheck`, all 11 API tests, and `npm 
 | 2026-10-11 | User selected Mobbin’s layout with realistic black foil packs. Generated original transparent ImPacks artwork and prepared a responsive interactive concept; genre filters, pack preview, and help panel verified | FE-1 implements this direction; this pass changes design references and assets only |
 
 | 2026-10-11 | Implemented Mobbin-style Next.js landing page, original foil artwork, accessible rotating categories, and preserved demo checkout/collection. Added an explicit ephemeral Vercel demo adapter around the existing server-owned service | Local typecheck/build and all 11 API tests pass. Local proxy, embedded production build, and https://impacks.vercel.app each passed catalog/login/opening/identical-retry/collection/logout checks. Responsive UI checked at 390px; no browser errors. Vercel project impacks uses apps/web and Node 24. GitHub auto-link failed; deployments use the CLI. Hosted memory can reset across instances; integrations remain simulated |
+| 2026-10-11 | Category pack pages at `/category/{theme}` with $20 / $50 / $100 / custom stakes; quote accepts optional `budgetCents` | Amazon-style shop removed. Frontend still opens three random cards; stake is the only scaled input |
 
 ## Open decisions
 
@@ -130,3 +131,16 @@ Replaced provider selection with a direct email field and Privy one-time-code ve
 
 - Removed the DEMO header badge and demo wording from pack prices, sign-in/fallback/sign-out controls, checkout, wallet text, payout copy, login note, footer and unavailable-service message. Brief simulation disclosures remain accurate; no real payment/trading integration was enabled.
 - Internal API modes, payment proof prefixes, storage keys and routes remain compatible. Verified visible text on landing, login and packs contains no standalone demo wording. Typecheck, all 15 API tests, and production build pass.
+
+### Ahrian local category fan revision (2026-10-11)
+
+- Centered the category pack fan and price rail as one group. Replaced the mirrored center-card stack with a 104-degree fan around a shared lower pivot, ordered left to right with the rightmost pack in front, matching the supplied playing-card reference.
+- Removed the white rounded card panels and center highlight; foil wrappers retain their transparent silhouette. Narrow layouts stack the price controls beneath the fan with no horizontal page overflow in browser checks. Five-pack and ten-pack states were checked; stake behavior is unchanged.
+- Local preview changes on `codex/ahrian-local-preview`; not deployed. Typecheck, all 16 API tests, and production build pass.
+
+### Category buy flow and signed-in account (2026-10-11)
+
+- Added a Buy pack CTA beside the stake picker and removed the category page’s separate display-name sign-in form. The category now waits for Privy, verifies any cached API session against that identity, and exchanges a current access token when the local session is absent or expired. No substitute account is created.
+- Email sign-in returns to an allowlisted pack route with the selected amount. Signed-in accounts can confirm random selection and open using their verified identity; wallet setup and account reconnection have explicit states. Changed accounts cannot reuse another user’s cached session or pending opening. Pending retries lock the amount and preserve the quote/key.
+- Typecheck, 17 API tests, six account-session/redirect tests, and production build pass. A verified-token integration test confirms quote/open/collection ownership and identical retries across renewed sessions. Browser checks verified the signed-out Buy CTA, email-only redirect and retained $50 selection. The browser was signed out, so real OTP sign-in/embedded-wallet creation remains unverified in this pass. Payments and trades are still simulated.
+- Includes the centered category fan revision above for integration into main; retain the Ahrian branch for ongoing work.

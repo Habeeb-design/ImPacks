@@ -32,3 +32,32 @@ test("Privy endpoint requires a bearer token",async t => {
  t.after(()=>app.close());
  assert.equal((await app.inject({method:"POST",url:routes.privyLogin,payload:{}})).statusCode,401);
 });
+
+test("signed-in Privy account owns category purchases across session renewal", async t => {
+ const keys = await generateKeyPair("ES256");
+ const app = buildApp({privyAppId:"test-app",privyKey:async()=>keys.publicKey});
+ t.after(()=>app.close());
+ async function account(subject: string) {
+  const access = await new SignJWT({}).setProtectedHeader({alg:"ES256"}).setSubject(subject).setAudience("test-app").setIssuer("privy.io").setIssuedAt().setExpirationTime("1h").sign(keys.privateKey);
+  const response = await app.inject({method:"POST",url:routes.privyLogin,headers:{authorization:`Bearer ${access}`},payload:{}});
+  assert.equal(response.statusCode,200);
+  return {authorization:`Bearer ${response.json().token}`};
+ }
+ const owner = await account("did:privy:buyer");
+ const quoteResponse = await app.inject({method:"POST",url:routes.quotes,headers:owner,payload:{packId:"crypto",budgetCents:5000}});
+ assert.equal(quoteResponse.statusCode,200);
+ const quote = quoteResponse.json();
+ const payload = {quoteId:quote.id,disclosureVersion:"random-v1",paymentProof:`demo:${quote.id}`};
+ const key = "signed-in-category-buy";
+ const opened = await app.inject({method:"POST",url:routes.openings,headers:{...owner,"idempotency-key":key},payload});
+ assert.equal(opened.statusCode,200);
+ assert.equal(opened.json().cards.length,3);
+ const renewed = await account("did:privy:buyer");
+ const repeated = await app.inject({method:"POST",url:routes.openings,headers:{...renewed,"idempotency-key":key},payload});
+ assert.deepEqual(repeated.json(),opened.json());
+ const portfolio = await app.inject({url:routes.portfolio,headers:renewed});
+ assert.equal(portfolio.json().openings[0].id,opened.json().id);
+ const other = await account("did:privy:other");
+ assert.equal((await app.inject({url:`${routes.openings}/${opened.json().id}`,headers:other})).statusCode,404);
+ assert.equal((await app.inject({url:routes.portfolio,headers:other})).json().openings.length,0);
+});

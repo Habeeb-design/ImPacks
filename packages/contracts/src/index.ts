@@ -8,7 +8,18 @@ export const routes = {
 export const DISCLOSURE_VERSION = "random-v1";
 export const DISCLOSURE = "Markets are randomly selected within your theme. Each YES/NO side is chosen with a 50/50 chance. Opening a pack automatically submits the selected positions within your stated budget. Selection is not investment advice or a prediction of returns.";
 export const loginSchema = z.object({ displayName: z.string().trim().min(1).max(40) });
-export const quoteSchema = z.object({ packId: z.string().min(1).max(80) });
+export const MIN_PACK_CENTS = 2000;
+export const MAX_PACK_CENTS = 25000;
+export const PACK_BUDGET_STEP_CENTS = 500;
+export const PACK_PRICE_PRESETS_DOLLARS = [20, 50, 100] as const;
+export function centsToAtomic(cents: number): string {
+  return String(cents * 10_000);
+}
+export const quoteSchema = z.object({
+  packId: z.string().min(1).max(80),
+  budgetCents: z.number().int().min(MIN_PACK_CENTS).max(MAX_PACK_CENTS)
+    .refine(value => value % PACK_BUDGET_STEP_CENTS === 0, "Budget must land on a $5 step.").optional(),
+});
 export const openSchema = z.object({
   quoteId: z.string().uuid(), disclosureVersion: z.literal(DISCLOSURE_VERSION),
   paymentProof: z.string().min(1).max(16384),

@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Pack } from "@impacks/contracts";
 import { PackTile } from "./PackTile";
 
 export function PackCarousel({ packs, selected, disabled, onSelect }: { packs: Pack[]; selected: string; disabled: boolean; onSelect: (id: string) => void }) {
+  const router = useRouter();
   const viewport = useRef<HTMLDivElement>(null);
   const group = useRef<HTMLDivElement>(null);
   const width = useRef(0);
@@ -57,8 +59,9 @@ export function PackCarousel({ packs, selected, disabled, onSelect }: { packs: P
     return () => cancelAnimationFrame(frame);
   }, [rotating, hovered, focused, disabled, visible]);
 
-  function choose(id: string) {
+  function choose(id: string, openCategory = false) {
     setRotating(false); setCategory(id); onSelect(id);
+    if (openCategory) router.push(`/category/${id}`);
   }
   function jump(index: number) {
     const pack = packs[index];
@@ -83,7 +86,7 @@ export function PackCarousel({ packs, selected, disabled, onSelect }: { packs: P
       onPointerDown={() => setRotating(false)}
       onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
       {[0, 1, 2].map(copy => <div className="pack-group" key={copy} ref={copy === 0 ? group : undefined} aria-hidden={copy === 0 ? undefined : true}>
-        {packs.map(pack => <PackTile key={pack.id} pack={pack} selected={category !== null && selected === pack.id} disabled={disabled} duplicate={copy !== 0} onSelect={() => choose(pack.id)} />)}
+        {packs.map(pack => <PackTile key={pack.id} pack={pack} selected={category !== null && selected === pack.id} disabled={disabled} duplicate={copy !== 0} onSelect={() => choose(pack.id, true)} />)}
       </div>)}
     </div>
     <div className="carousel-controls"><button aria-label="Previous category" disabled={disabled} onClick={() => step(-1)}>←</button><button disabled={disabled} onClick={() => { setRotating(value => !value); if (!rotating) setCategory(null); }}>{rotating ? "Pause rotation" : "Resume rotation"}</button><button aria-label="Next category" disabled={disabled} onClick={() => step(1)}>→</button></div>

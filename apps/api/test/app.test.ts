@@ -137,6 +137,18 @@ test("draw filters duplicate, inactive and wrong-theme markets; allocation retai
   assert.equal(cards.reduce((sum, card) => sum + card.allocationCents, 0), 1501);
 });
 
+test("category quote scales the three-card budget on $5 steps", async t => {
+  const { app, headers } = await setup(t);
+  const response = await app.inject({ method: "POST", url: routes.quotes, headers, payload: { packId: "crypto", budgetCents: 5000 } });
+  assert.equal(response.statusCode, 200);
+  const quote = response.json<Quote>();
+  assert.equal(quote.pack.budgetCents, 5000);
+  assert.equal(quote.payment.amountAtomic, "50000000");
+  assert.equal(quote.pack.cardCount, 3);
+  const rejected = await app.inject({ method: "POST", url: routes.quotes, headers, payload: { packId: "crypto", budgetCents: 2100 } });
+  assert.equal(rejected.statusCode, 400);
+});
+
 test("unimplemented external mode fails closed", () => {
   assert.throws(() => buildApp({ mode: "sandbox" }), /Only demo mode/);
 });

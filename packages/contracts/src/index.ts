@@ -106,7 +106,7 @@ export interface CheckoutPurchase {
   paymentBlockHash: string | null;
   paymentLogIndex: number | null;
 }
-export type Theme = "crypto" | "sports" | "mixed";
+export type Theme = "crypto" | "sports" | "politics" | "economics" | "commodities" | "business" | "culture" | "tech" | "weather" | "mixed";
 export type Side = "YES" | "NO";
 export interface User { id: string; displayName: string }
 export interface Session { token: string; user: User; mode: "demo" }

@@ -1,9 +1,10 @@
 import type { Market, Theme } from "@impacks/contracts";
 import type { Providers } from "./ports.js";
 
-// Read-only discovery adapted from mekila 31d80d5; production data is NOT sandbox tradability evidence.
+// Nine-genre discovery from mekila, reconciled with durable checkout.
+// Production discovery is not sandbox tradability evidence; submission stays disabled.
 const MARKET_BASE = "https://api.gemini.com";
-const ALL_CATEGORIES: Exclude<Theme, "mixed">[] = ["crypto", "sports"];
+const ALL_CATEGORIES: Exclude<Theme, "mixed">[] = ["crypto", "sports", "politics", "economics", "commodities", "business", "culture", "tech", "weather"];
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${MARKET_BASE}${path}`, { signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error("Gemini market discovery unavailable.");

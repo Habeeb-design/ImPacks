@@ -573,3 +573,13 @@ Latest-main reconciliation: incorporated `18db4e0`, including the durable databa
 - User requested publishing the current shared workspace on `codex/durable-purchase-flow`. Snapshot includes themed testnet checkout, platform-advance plumbing, exact Gemini identifier/fee-history recovery, purchase progress UI, grant setup, marketplace copy/currency changes, browser regressions, and demo-video assets.
 - Validation for this snapshot: typecheck, all 236 tests (201 API + 35 web), and production build passed. Staged files were checked against configured private secret values; ignored environments, signing keys and SQLite data/backups are excluded. The bundled font license is retained verbatim, including its upstream trailing space.
 - Live acceptance remains incomplete: the original partial Gemini fill and fee evidence are preserved, while the remaining pack execution/reconciliation is still under investigation. This push is a code snapshot, not a claim that the pending user's pack or payment has completed.
+
+### Post-trade branch promotion (2026-10-11)
+
+- Reconciled the local post-trade history with current main, preserving its already-integrated marketplace, checkout UI and Gemini preparation. Replaced committed conflict markers with the current main implementation.
+- Retained the local Docker marketplace startup instructions in POSTTRADE.md. Local Privy/environment configuration stays ignored; real two-account email sign-in remains unverified. No transfers or exchange orders were enabled.
+- Promotion checks passed in the Node 24 Docker container: typecheck, all 194 tests (164 API + 30 web), production build, and diff whitespace validation.
+
+### Main snapshot promotion (2026-10-11)
+
+- At the user’s request, merged the verified shared snapshot with the latest main, preserving the post-trade setup documentation and both status histories. Only documentation changed during reconciliation; application code matches the snapshot that passed typecheck, 236 tests, and production build. Live pack reconciliation remains incomplete.

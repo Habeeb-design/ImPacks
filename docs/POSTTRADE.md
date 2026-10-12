@@ -96,3 +96,30 @@ Before enabling real-backed resale:
 Automated tests cover ownership/authentication, fill deduplication, partial transfer and repeat resale, quantity and cash conservation, reservations, stale/foreign quotes, self-trade rejection, insufficient cash, cancellation/expiry, independent SQLite connections, rollback after an injected database failure, restart/retry and blocking legacy close. UI helper tests cover owner-scoped stored requests and remaining-quantity exposure. No real Gemini sale, cross-account exchange transfer, AUSD payout or market-resolution payout is implemented.
 
 Primary sources inspected October 11, 2026: [Gemini trading](https://developer.gemini.com/prediction-markets-spec/trading), [Gemini positions](https://developer.gemini.com/prediction-markets-spec/positions). These establish exchange trading/account positions and instrument-specific constraints, not portability of customer claims or commercial permission for the proposed pooled model.
+
+## Existing local Docker workspace
+
+For the established `impacks-node24-dev-1` container, the local setup uses:
+
+- Frontend: `http://localhost:3001/marketplace` on the existing localhost-only published port.
+- Standalone API: `http://127.0.0.1:3002` inside the container, reached by the frontend proxy.
+- Persistent ledger: `/var/lib/impacks/posttrade.sqlite` on the existing Docker volume.
+- Ignored `apps/api/.env`: public Privy App ID, POSTTRADE_DEMO_ENABLED=1,
+  POSTTRADE_DB_PATH, WELCOME_GRANTS_ENABLED=0, and port 3002.
+- Ignored `apps/web/.env.local`: matching NEXT_PUBLIC_PRIVY_APP_ID,
+  API_PROXY_TARGET=http://127.0.0.1:3002, IMPACKS_EMBEDDED_DEMO=0.
+
+With these local files configured, start the servers in two terminals (only when
+those ports are free):
+
+```sh
+docker exec -it -w /workspace/apps/api -e PORT=3002 -e HOST=127.0.0.1 -e WELCOME_GRANTS_ENABLED=0 -e IMPACKS_EMBEDDED_DEMO=0 impacks-node24-dev-1 node --env-file=.env dist/index.js
+docker exec -it -w /workspace/apps/web -e IMPACKS_EMBEDDED_DEMO=0 -e API_PROXY_TARGET=http://127.0.0.1:3002 impacks-node24-dev-1 ../../node_modules/.bin/next start --hostname 0.0.0.0 --port 3001
+```
+
+Build first after source changes: `docker exec impacks-node24-dev-1 npm run build`.
+The public Privy ID must be present during the frontend build. Allow the local
+frontend origin in Privy if required by the app's dashboard configuration. Use two
+actual email accounts in separate browser profiles for manual testing. Automated
+signed-token fixtures do not establish that real email delivery/sign-in succeeded.
+No welcome-grant worker is started by this setup; paper trading never moves AUSD.

@@ -5,7 +5,8 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Opening } from "@impacks/contracts";
 import { createOpeningMotion } from "../lib/opening-motion";
 import { openingTiming, openingPhase } from "../lib/opening-timeline";
-import { PredictionCard } from "./PredictionCard";
+import { cardRarity } from "../lib/card-presentation";
+import { CardVisual, rarityColors, PredictionCard } from "./PredictionCard";
 import styles from "./PackOpeningReveal.module.css";
 
 const palettes = {
@@ -92,19 +93,18 @@ export function PackOpeningReveal({ opening, category, onClose }: {
         <div className="op-stage">
           <div className="op-floor"/><div className="op-aura"/><div className="op-rays"/>
           <div className="op-particles">{Array.from({length:20},(_,i)=><span key={i} className="op-particle"/>)}</div>
-          {opening.cards.map((card,index)=><div key={card.id} className="op-card-lift"><div className="op-card-turn">
+          {opening.cards.map((card,index)=><div key={card.id} className="op-card-lift" data-rarity={cardRarity(card)} style={{ "--op-aura": rarityColors[cardRarity(card)] } as CSSProperties}><div className="op-card-turn">
             <div className="op-card-back"><span>IMPACKS</span><strong>IM</strong><small>DISCOVER WHAT’S INSIDE</small></div>
             <div className="op-card-front">
               <div className="op-card-veil"><span>IMPACKS</span><strong>IM</strong><small>DISCOVER WHAT’S INSIDE</small></div>
-              <div className="op-card-art"><span className="op-card-series">{genre.toUpperCase()} / {String(index+1).padStart(3,"0")}</span><span className="op-coin">{category === "crypto" ? "₿" : category === "sports" ? "✦" : "∞"}</span><span className="op-rarity-label">{card.side}</span></div>
-              <div className="op-card-copy"><h3>{card.question}</h3><span>{card.order.status} · {card.order.quantity} contracts</span></div>
+              <CardVisual card={card} category={opening.theme ?? category} mode={opening.mode} compact/>
             </div>
           </div></div>)}
           <div className="op-pack"><div className="op-pack-body op-wrapper-image"/><canvas className="op-foil-mesh" width={1080} height={1000}/></div>
         </div>
       </div>
     </div>
-    {complete && <div className={styles.results} role="region" aria-label="Revealed cards" tabIndex={0} style={{ "--result-columns": Math.min(4,Math.max(1,opening.cards.length)) } as CSSProperties}>{opening.cards.map(card=><PredictionCard key={card.id} card={card} mode={opening.mode}/>)}</div>}
+    {complete && <div className={styles.results} role="region" aria-label="Revealed cards" tabIndex={0} style={{ "--result-columns": Math.min(4,Math.max(1,opening.cards.length)) } as CSSProperties}>{opening.cards.map(card=><PredictionCard key={card.id} card={card} mode={opening.mode} category={opening.theme ?? category}/>)}</div>}
     <footer className={styles.footer}><div><p className={styles.disclosure}>{opening.mode === "demo" ? "Simulated payments and trades" : "Sandbox opening"}</p><p className={styles.disclosure}>{opening.status} · payment {opening.payment.status}</p><span className={styles.srOnly} role="status">{status}</span></div><div className={styles.actions}>
       {complete ? <><button type="button" onClick={()=>controls.current?.replay()}>Replay opening</button><Link href={`/dashboard?opening=${encodeURIComponent(opening.id)}`} onClick={onClose}>View collection ↗</Link></> : <><button type="button" onClick={()=>controls.current?.toggle()}>{playing ? "Pause" : "Resume"}</button><button type="button" onClick={()=>controls.current?.skip()}>Reveal all ↗</button></>}
     </div></footer>

@@ -6,6 +6,7 @@ import { api, ApiError } from "../lib/api";
 import { heldQuantity, cardStatus, closeAttemptStorageKey, collectionSummary, filterCollection, openingGenre, statusLabels, type CollectionFilter } from "../lib/collection";
 import { usePackSession } from "../lib/session";
 import { CheckoutHistory } from "./TestnetCheckout";
+import { CardVisual } from "./PredictionCard";
 import { SiteHeader } from "./SiteHeader";
 import { useAccountWallet } from "./WalletProvider";
 import "./dashboard.css";
@@ -17,14 +18,8 @@ const filters: { value: CollectionFilter; label: string }[] = [
   { value: "awaiting", label: "Awaiting" }, { value: "unfilled", label: "Not filled" },
 ];
 
-function CardFace({ card, genre, index }: { card: Card; genre: string; index: number }) {
-  const status = cardStatus(card);
-  return <div className={`collector-face collector-${genre.toLowerCase()} collector-status-${status}`}>
-    <div className="collector-card-top"><span>{genre} edition</span><span>#{String(index + 1).padStart(2, "0")}</span></div>
-    <div className="collector-card-art" aria-hidden="true"><span>{card.side === "YES" ? "↗" : "↘"}</span><i/><i/><i/></div>
-    <div className="collector-card-copy"><span className={`collector-side collector-side-${card.side.toLowerCase()}`}>{status === "open" ? "You hold" : status === "closed" ? "You held" : "Selected"} {card.side}</span><h3>{card.question}</h3></div>
-    <div className="collector-card-bottom"><span>{statusLabels[status]}</span><span>{status === "open" || status === "closed" ? `${card.position?.remainingQuantity ?? card.order.quantity} contracts` : "No confirmed holding"}</span></div>
-  </div>;
+function CardFace({ card, genre, mode }: { card: Card; genre: string; mode: Opening["mode"] }) {
+  return <CardVisual card={card} category={genre} mode={mode}/>;
 }
 
 export function Dashboard() {
@@ -112,14 +107,14 @@ export function Dashboard() {
           : <div className="collection-shelves">{groups.map(opening => <section className="collection-shelf" key={opening.id}><div className="collection-shelf-heading"><div><p className="eyebrow">{openingGenre(opening).toUpperCase()} EDITION</p><h2>{opening.packName}</h2><p>Opened {date(opening.createdAt)} <span>·</span> Pack {opening.id.slice(0, 8)}</p></div><span>{opening.cards.length} {opening.cards.length === 1 ? "card" : "cards"}{filter !== "all" || search ? " in this view" : " in this pack"}</span></div><div className="collector-grid">{opening.cards.map(card => {
             const original = openings.find(item => item.id === opening.id)!;
             const status = cardStatus(card);
-            return <button className="collector-item" key={card.id} onClick={() => inspect(original, card)} aria-label={`View ${card.side}: ${card.question}. ${statusLabels[status]}`}><CardFace card={card} genre={openingGenre(opening)} index={original.cards.findIndex(item => item.id === card.id)}/><div className="collector-item-meta"><span>{status === "open" ? `${money(card.position?.costBasisCents ?? card.order.spentCents)} remaining basis` : status === "closed" ? card.position?.remainingQuantity !== undefined ? "Transferred · see Trade" : `${money(card.position?.proceedsCents ?? 0)} returned (simulated)` : statusLabels[status]}</span><span>{status === "open" ? "Manage position" : "View card"} <b aria-hidden="true">↗</b></span></div></button>;
+            return <button className="collector-item" key={card.id} onClick={() => inspect(original, card)} aria-label={`View ${card.side}: ${card.question}. ${statusLabels[status]}`}><CardFace card={card} genre={openingGenre(opening)} mode={opening.mode}/><div className="collector-item-meta"><span>{status === "open" ? `${money(card.position?.costBasisCents ?? card.order.spentCents)} remaining basis` : status === "closed" ? card.position?.remainingQuantity !== undefined ? "Transferred · see Trade" : `${money(card.position?.proceedsCents ?? 0)} returned (simulated)` : statusLabels[status]}</span><span>{status === "open" ? "Manage position" : "View card"} <b aria-hidden="true">↗</b></span></div></button>;
           })}</div></section>)}</div>}
       </>}
 
     {wallet.authenticated && <CheckoutHistory key={`${wallet.userId}:${wallet.address}`}/>}
 
     <dialog className="collection-detail" aria-label="Prediction card details" ref={dialog} onCancel={event => { if (closing) event.preventDefault(); else dismiss(); }} onClose={dismiss}>
-      {selectedCard && selectedOpening && selectedStatus && <><button className="collection-detail-dismiss" aria-label="Close card details" disabled={closing} onClick={dismiss}>×</button><div className="collection-detail-layout"><CardFace card={selectedCard} genre={openingGenre(selectedOpening)} index={selectedOpening.cards.findIndex(card => card.id === selectedCard.id)}/><div className="collection-detail-info"><p className="eyebrow">{statusLabels[selectedStatus].toUpperCase()}</p><h2>Your {selectedCard.side} card.</h2><p>{selectedCard.side === "YES" ? "Your side wins if this market resolves YES." : "Your side wins if this market resolves NO."} Resolution follows the market’s rules.</p><dl><div><dt>Contracts {selectedStatus === "closed" ? "closed" : "filled"}</dt><dd>{selectedStatus === "open" || selectedStatus === "closed" ? selectedCard.order.quantity : "—"}</dd></div><div><dt>Simulated amount spent</dt><dd>{money(selectedCard.order.spentCents)}</dd></div><div><dt>Entry price per contract</dt><dd>{money(selectedCard.priceCents)}</dd></div><div><dt>{selectedStatus === "closed" ? "Simulated close proceeds" : "Gross payout if your side wins"}</dt><dd>{selectedStatus === "closed" ? selectedCard.position?.remainingQuantity !== undefined ? "See trade history" : money(selectedCard.position?.proceedsCents ?? 0) : selectedStatus === "open" ? money(heldQuantity(selectedCard) * 100) : "—"}</dd></div></dl>
+      {selectedCard && selectedOpening && selectedStatus && <><button className="collection-detail-dismiss" aria-label="Close card details" disabled={closing} onClick={dismiss}>×</button><div className="collection-detail-layout"><CardFace card={selectedCard} genre={openingGenre(selectedOpening)} mode={selectedOpening.mode}/><div className="collection-detail-info"><p className="eyebrow">{statusLabels[selectedStatus].toUpperCase()}</p><h2>Your {selectedCard.side} card.</h2><p>{selectedCard.question}</p><p>{selectedCard.side === "YES" ? "Your side wins if this market resolves YES." : "Your side wins if this market resolves NO."} Resolution follows the market’s rules.</p><dl><div><dt>Contracts {selectedStatus === "closed" ? "closed" : "filled"}</dt><dd>{selectedStatus === "open" || selectedStatus === "closed" ? selectedCard.order.quantity : "—"}</dd></div><div><dt>Simulated amount spent</dt><dd>{money(selectedCard.order.spentCents)}</dd></div><div><dt>Entry price per contract</dt><dd>{money(selectedCard.priceCents)}</dd></div><div><dt>{selectedStatus === "closed" ? "Simulated close proceeds" : "Gross payout if your side wins"}</dt><dd>{selectedStatus === "closed" ? selectedCard.position?.remainingQuantity !== undefined ? "See trade history" : money(selectedCard.position?.proceedsCents ?? 0) : selectedStatus === "open" ? money(heldQuantity(selectedCard) * 100) : "—"}</dd></div></dl>
       {selectedStatus === "open" && <p className="collection-detail-note">Conditional gross payout includes your stake. It is not a current valuation or a guaranteed return. Closing ends exposure to this outcome.</p>}
       {selectedStatus === "closed" && selectedCard.position?.remainingQuantity === undefined && <p className="collection-detail-note">Closed {selectedCard.position?.closedAt ? date(selectedCard.position.closedAt) : "previously"}. This card stays in your collection; it no longer pays if the outcome wins.</p>}
       {(selectedStatus === "awaiting" || selectedStatus === "unfilled") && <p className="collection-detail-note">{selectedCard.order.message || "This order has no confirmed holding. It cannot be closed or counted as an open position."}</p>}

@@ -469,3 +469,16 @@ Latest-main reconciliation: incorporated `18db4e0`, including the durable databa
 - Reconciled the local post-trade history with current main, preserving its already-integrated marketplace, checkout UI and Gemini preparation. Replaced committed conflict markers with the current main implementation.
 - Retained the local Docker marketplace startup instructions in POSTTRADE.md. Local Privy/environment configuration stays ignored; real two-account email sign-in remains unverified. No transfers or exchange orders were enabled.
 - Promotion checks passed in the Node 24 Docker container: typecheck, all 194 tests (164 API + 30 web), production build, and diff whitespace validation.
+
+### Pack visual upgrade (feature/pack-visual-upgrade)
+
+- Reused the existing foil/timeline renderer and replaced pastel reveal results with reusable dark collectible faces shared by the Dashboard. Added cosmetic silver/blue/purple/gold finishes, holographic reflections, hover tilt, finish-specific reveal glow, delayed individual reveals and expandable original questions.
+- Question-based branding uses existing local logo assets with conservative matching and category fallbacks. Solana uses a labeled badge pending an approved asset. Rarity is a deterministic cosmetic market/side hash, not Gemini rarity or probability; see PACK_VISUALS.md.
+- No backend, contracts, authentication, payments, orders, dependencies or persisted selection changes. Replay operates on the supplied opening. Remaining ownership and pending states retain honest payout displays.
+- Validation: Docker Node 24 typecheck, 182 API tests, 37 frontend tests, production build and whitespace checks passed. No lint script exists. Isolated Chrome card rendering inspected; exact mobile emulation and a full interactive replay/reduced-motion browser walkthrough remain unverified because local headless Chrome stalled. Responsive/replay geometry is covered by timeline tests; reduced-motion guards were preserved. No transactions or orders submitted.
+
+### Semantic card hero artwork
+
+- Added resolveCardVisual and decorative CardHeroIcon vectors, replacing center placeholders in the shared reveal/collection face. Sports wording selects soccer, American football, basketball, baseball, hockey or tennis; ambiguous sports use a trophy. Explicit crypto/company matches reuse local assets; Solana has a local three-bar mark. Category fallbacks retain rarity color/glow and remain screen-reader decorative.
+- Only existing question and parent category are available; structured asset/sport metadata and locale-aware football disambiguation are future improvements. No dependencies, backend/contracts or transaction behavior changed.
+- Docker frontend typecheck, all 40 frontend tests, production build and whitespace checks passed. No frontend lint command is configured.

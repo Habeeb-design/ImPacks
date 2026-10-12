@@ -43,6 +43,7 @@ export async function createOpeningMotion(root: HTMLElement, palette: readonly s
       el.querySelector<HTMLElement>('.op-card-turn')!.style.transform=`rotateY(${m.angle}deg)`;
       el.querySelector<HTMLElement>('.op-card-veil')!.style.opacity=String(1-m.reveal);
       el.style.setProperty('--op-shimmer-x',m.shimmer+'%');
+      el.style.setProperty('--op-energy',String(Math.sin(Math.PI * m.reveal) + .25 * m.reveal));
     });
   };
 }

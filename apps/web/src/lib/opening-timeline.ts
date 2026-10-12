@@ -5,10 +5,10 @@ export const smooth = (n: number) => n * n * n * (n * (n * 6 - 15) + 10);
 export const beat = (t: number, start: number, end: number) => smooth(phase(t, start, end));
 export function openingTiming(count: number) {
   const riseStep = Math.min(160, 640 / Math.max(1, count - 1));
-  const spinStep = Math.min(120, 360 / Math.max(1, count - 1));
+  const spinStep = Math.min(450, 900 / Math.max(1, count - 1));
   const clearAt = 4700 + Math.max(0, count - 1) * riseStep;
   const fanStart = Math.max(5500, clearAt + 480);
-  return { riseStep, spinStep, clearAt, fanStart, duration: fanStart + 4320 };
+  return { riseStep, spinStep, clearAt, fanStart, duration: fanStart + 3930 + Math.max(0, count - 1) * spinStep + 200 };
 }
 export const OPENING_DURATION = openingTiming(3).duration;
 export function revealLayout(count: number, sceneWidth: number) {

@@ -42,3 +42,12 @@ test('small reveals get larger cards; many cards wrap instead of becoming unread
   assert.ok(revealLayout(40,330).cardWidth>=240);
   assert.ok(revealLayout(40,330).height>700);
 });
+
+test('replaying the same reveal yields identical card positions and sequential reveals', () => {
+ const end=openingTiming(3).duration;
+ const before=[0,1,2].map(i=>cardMotion(end,i,3,1100));
+ for(let t=0;t<end;t+=100)for(let i=0;i<3;i++)cardMotion(t,i,3,1100);
+ assert.deepEqual([0,1,2].map(i=>cardMotion(end,i,3,1100)),before);
+ const times=[0,1,2].map(i=>{for(let t=0;t<=end;t+=10)if(cardMotion(t,i,3,1100).reveal>.5)return t;return end;});
+ assert.ok(times[1]!>times[0]!+300);assert.ok(times[2]!>times[1]!+300);
+});

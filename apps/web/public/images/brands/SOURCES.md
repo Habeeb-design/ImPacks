@@ -16,3 +16,5 @@ The following real organization marks identify topics; no affiliation is implied
 - Weather: [NOAA](https://commons.wikimedia.org/wiki/File:NOAA_logo.svg), public domain US government work.
 
 Simple Icons SVGs are distributed under [CC0](https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md); this does not grant trademark rights.
+
+Solana: local simplified vector rendition of the recognizable three-bar mark for explicit Solana subjects. Trademark belongs to its owner; no affiliation implied.

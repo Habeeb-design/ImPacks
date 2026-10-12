@@ -113,7 +113,7 @@ test("post-trade runtime is opt-in and rejects ephemeral storage",()=>{
  assert.throws(()=>createPostTradeStore({POSTTRADE_DEMO_ENABLED:"1",VERCEL:"1"}),/standalone/);
  assert.throws(()=>createPostTradeStore({POSTTRADE_DEMO_ENABLED:"1",POSTTRADE_DB_PATH:":memory:"}),/durable/);
 });
-test("authenticated API connects opening to listing to resale, isolates accounts and blocks legacy double-close",async t=>{
+test("two-account $20 paper pack rehearsal transfers a full card once and blocks legacy double-close",async t=>{
  const ledger=new PostTradeStore(":memory:");t.after(()=>ledger.close());const {privateKey,publicKey}=await generateKeyPair("ES256");
  const app=buildApp({postTrade:ledger,privyAppId:"app",privyKey:async()=>publicKey});t.after(()=>app.close());
  async function login(id:string){const jwt=await new SignJWT({}).setProtectedHeader({alg:"ES256"}).setIssuer("privy.io").setAudience("app").setSubject(`did:privy:${id}`).setIssuedAt().setExpirationTime("1h").sign(privateKey);
@@ -122,17 +122,30 @@ test("authenticated API connects opening to listing to resale, isolates accounts
  assert.equal((await app.inject({url:"/api/posttrade/portfolio"})).statusCode,401);
  const guest=(await app.inject({method:"POST",url:"/api/auth/demo",payload:{displayName:"Guest"}})).json();
  assert.equal((await app.inject({url:"/api/posttrade/portfolio",headers:auth(guest.token)})).statusCode,403);
- const quote=(await app.inject({method:"POST",url:"/api/quotes",headers:auth(seller),payload:{packId:"crypto"}})).json();
+ const quote=(await app.inject({method:"POST",url:"/api/quotes",headers:auth(seller),payload:{packId:"crypto",budgetCents:2000}})).json();
+ assert.equal(quote.pack.budgetCents,2000);assert.equal(quote.pack.priceAtomic,"20000000");
  const opened=await app.inject({method:"POST",url:"/api/openings",headers:auth(seller,"opening-key"),payload:{quoteId:quote.id,disclosureVersion:"random-v1",paymentProof:`demo:${quote.id}`}});assert.equal(opened.statusCode,200);
+ assert.equal(opened.json().mode,"demo");assert.equal(opened.json().cards.reduce((total:number,card:any)=>total+card.allocationCents,0),2000);
  const portfolio=(await app.inject({url:"/api/posttrade/portfolio",headers:auth(seller)})).json();assert.equal(portfolio.positions.length,3);
  const position=portfolio.positions[0];
- const response=await app.inject({method:"POST",url:"/api/posttrade/listings",headers:auth(seller,"listing-key"),payload:{positionId:position.id,quantity:1,priceCents:50,confirmSimulation:true}});assert.equal(response.statusCode,200);
- const purchaseQuote=(await app.inject({method:"POST",url:"/api/posttrade/quotes",headers:auth(buyer),payload:{listingId:response.json().id,quantity:1}})).json();
+ const quantity=position.remainingQuantity;
+ const response=await app.inject({method:"POST",url:"/api/posttrade/listings",headers:auth(seller,"listing-key"),payload:{positionId:position.id,quantity,priceCents:50,confirmSimulation:true}});assert.equal(response.statusCode,200);
+ assert.equal((await app.inject({method:"POST",url:"/api/posttrade/quotes",headers:auth(seller),payload:{listingId:response.json().id,quantity}})).statusCode,409);
+ const purchaseQuote=(await app.inject({method:"POST",url:"/api/posttrade/quotes",headers:auth(buyer),payload:{listingId:response.json().id,quantity}})).json();
+ assert.equal(purchaseQuote.currency,"SIMULATED_AUSD");
  const [one,two]=await Promise.all([1,2].map(()=>app.inject({method:"POST",url:"/api/posttrade/trades",headers:auth(buyer,"purchase-key"),payload:{quoteId:purchaseQuote.id,confirmSimulation:true}})));
  assert.equal(one.statusCode,200);assert.equal(one.json().id,two.json().id);
+ assert.equal(one.json().currency,"SIMULATED_AUSD");assert.equal(one.json().payout,"not_redeemable");
  const card=opened.json().cards.find((c:any)=>c.id===position.sourceCardId);
  assert.equal((await app.inject({method:"POST",url:`/api/openings/${opened.json().id}/cards/${card.id}/close`,headers:auth(seller,"close-key"),payload:{confirmSimulation:true}})).statusCode,409);
  assert.equal((await app.inject({method:"POST",url:"/api/posttrade/trades",headers:auth(buyer,"extra-key"),payload:{quoteId:purchaseQuote.id,confirmSimulation:true,recipient:"attacker"}})).statusCode,400);
  const ownerView=(await app.inject({url:"/api/portfolio",headers:auth(seller)})).json().openings[0];
- assert.equal(ownerView.cards.find((c:any)=>c.id===card.id).position.remainingQuantity,card.order.quantity-1);
+ assert.equal(ownerView.cards.find((c:any)=>c.id===card.id).position.remainingQuantity,0);
+ const sellerAfter=(await app.inject({url:"/api/posttrade/portfolio",headers:auth(seller)})).json();
+ const buyerAfter=(await app.inject({url:"/api/posttrade/portfolio",headers:auth(buyer)})).json();
+ assert.equal(buyerAfter.currency,"SIMULATED_AUSD");assert.equal(buyerAfter.positions.length,1);
+ assert.equal(buyerAfter.positions[0].sourceCardId,card.id);assert.equal(buyerAfter.positions[0].remainingQuantity,quantity);
+ assert.equal(sellerAfter.positions.some((p:any)=>p.sourceCardId===card.id),false);
+ assert.equal(sellerAfter.balanceCents,10000+quantity*50);assert.equal(buyerAfter.balanceCents,10000-quantity*50);
+ assert.equal(sellerAfter.trades.length,1);assert.equal(buyerAfter.trades.length,1);
 });

@@ -40,7 +40,7 @@ export class PackService {
       ...catalog,
       budgetCents: budget,
       priceAtomic: centsToAtomic(budget),
-      name: budget === catalog.budgetCents ? catalog.name : `${catalog.name} · $${(budget / 100).toFixed(0)}`,
+      name: budget === catalog.budgetCents ? catalog.name : `${catalog.name} · ${(budget / 100).toFixed(0)} AUSD`,
     };
     const value: Quote = {
       id: randomUUID(), pack, expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(), disclosureVersion: DISCLOSURE_VERSION,

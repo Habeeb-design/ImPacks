@@ -7,24 +7,33 @@ import { createOpeningMotion } from "../lib/opening-motion";
 import { openingTiming, openingPhase } from "../lib/opening-timeline";
 import { PredictionCard } from "./PredictionCard";
 import styles from "./PackOpeningReveal.module.css";
+import { categoryCopy, type CategoryId } from "../lib/category";
 
 const palettes = {
   crypto: ["#edb63e", "#a75a11", "#fff2bf"],
   sports: ["#50aaff", "#254ec8", "#c6ebff"],
   mixed: ["#b275f8", "#6424b0", "#eee0ff"],
+  politics: ["#ec7b7b", "#923c58", "#ffe2e2"],
+  economics: ["#66b79a", "#216d53", "#d7f5e6"],
+  commodities: ["#e3b658", "#986322", "#fff1d0"],
+  business: ["#6b9cd6", "#305985", "#e0edff"],
+  culture: ["#e88ec7", "#91376f", "#ffe2f3"],
+  tech: ["#93c54c", "#4b7221", "#eaf8d1"],
+  weather: ["#6ebdcf", "#316b91", "#dff7ff"],
 } as const;
 type Controls = { toggle(): void; skip(): void; replay(): void };
 
 // Presentation only: replay/skip never request a quote, payment, or new selection.
-export function PackOpeningReveal({ opening, category, onClose }: {
-  opening: Opening; category: keyof typeof palettes; onClose(): void;
+export function PackOpeningReveal({ opening, category, onClose, paymentAction }: {
+  opening: Opening; category: CategoryId; onClose(): void;
+  paymentAction?: { label: string; onClick(): void };
 }) {
   const dialog = useRef<HTMLDialogElement>(null), scene = useRef<HTMLDivElement>(null), viewport = useRef<HTMLDivElement>(null);
   const controls = useRef<Controls | null>(null);
   const [playing, setPlaying] = useState(true), [complete, setComplete] = useState(false);
   const [status, setStatus] = useState("Preparing your pack…");
   const palette = palettes[category];
-  const genre = category === "mixed" ? "Chaos" : category === "crypto" ? "Crypto" : "Sports";
+  const genre = categoryCopy[category].genre;
 
   useEffect(() => {
     const modal=dialog.current!, root=scene.current!, windowEl=viewport.current!;
@@ -105,8 +114,8 @@ export function PackOpeningReveal({ opening, category, onClose }: {
       </div>
     </div>
     {complete && <div className={styles.results} role="region" aria-label="Revealed cards" tabIndex={0} style={{ "--result-columns": Math.min(4,Math.max(1,opening.cards.length)) } as CSSProperties}>{opening.cards.map(card=><PredictionCard key={card.id} card={card} mode={opening.mode}/>)}</div>}
-    <footer className={styles.footer}><div><p className={styles.disclosure}>{opening.mode === "demo" ? "Simulated payments and trades" : "Sandbox opening"}</p><p className={styles.disclosure}>{opening.status} · payment {opening.payment.status}</p><span className={styles.srOnly} role="status">{status}</span></div><div className={styles.actions}>
-      {complete ? <><button type="button" onClick={()=>controls.current?.replay()}>Replay opening</button><Link href={`/dashboard?opening=${encodeURIComponent(opening.id)}`} onClick={onClose}>View collection ↗</Link></> : <><button type="button" onClick={()=>controls.current?.toggle()}>{playing ? "Pause" : "Resume"}</button><button type="button" onClick={()=>controls.current?.skip()}>Reveal all ↗</button></>}
+    <footer className={styles.footer}><div><p className={styles.disclosure}>{opening.mode === "demo" ? "Simulated payments and trades" : "Testnet opening"}</p><p className={styles.disclosure}>{opening.status} · payment {opening.payment.status}</p><span className={styles.srOnly} role="status">{status}</span></div><div className={styles.actions}>
+      {complete ? <><button type="button" onClick={()=>controls.current?.replay()}>Replay opening</button>{paymentAction ? <button type="button" onClick={paymentAction.onClick}>{paymentAction.label}</button> : <Link href={`/dashboard?opening=${encodeURIComponent(opening.id)}`} onClick={onClose}>View collection ↗</Link>}</> : <><button type="button" onClick={()=>controls.current?.toggle()}>{playing ? "Pause" : "Resume"}</button><button type="button" onClick={()=>controls.current?.skip()}>Reveal all ↗</button></>}
     </div></footer>
   </dialog>;
 }

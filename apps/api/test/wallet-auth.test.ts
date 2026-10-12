@@ -177,7 +177,7 @@ test("version-1 database migration preserves legacy records without granting own
   const { app } = setup(t, path);
   assert.equal((await app.inject({ url: `/api/checkout/${id}`, headers: await walletHeaders(app) })).statusCode, 404);
   const inspected = new DatabaseSync(path); t.after(() => inspected.close());
-  assert.equal(inspected.prepare("PRAGMA user_version").get()!.user_version, 6);
+  assert.equal(inspected.prepare("PRAGMA user_version").get()!.user_version, 7);
   assert.equal(inspected.prepare("SELECT owner_wallet FROM checkout_purchases WHERE id=?").get(id)!.owner_wallet, null);
   assert.equal(inspected.prepare("SELECT count(*) AS n FROM checkout_purchases").get()!.n, 1);
 });

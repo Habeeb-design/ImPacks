@@ -14,3 +14,11 @@
 .status { display: inline-block; background: #eee9dd; padding: 6px 12px; border-radius: 50px; font-size: 13px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 18px; margin: 24px 0; }
 .panel button:disabled { opacity: .55; cursor: not-allowed; }
+
+.details { margin-top: 20px; color: #68645b; font-size: 14px; }
+.details summary { cursor: pointer; color: #222; }
+.opening { display: flex; align-items: center; gap: 12px; padding: 20px 0; font-weight: 600; }
+.opening span { width: 22px; height: 22px; border: 3px solid #ddd; border-top-color: #222; border-radius: 50%; animation: checkoutSpin 1s linear infinite; }
+@keyframes checkoutSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .opening span { animation: none; } }
+.details p { overflow-wrap: anywhere; }

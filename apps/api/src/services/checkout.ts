@@ -37,7 +37,7 @@ export class CheckoutService {
     }
     const catalog = input.packType === "category" ? packs.find(pack => pack.id === input.packId) : undefined;
     if (input.packType === "category" && !catalog) throw new HttpError(404, "PACK_NOT_FOUND", "Edition is unavailable.");
-    const pack = catalog ? { ...catalog, budgetCents: input.budgetCents!, priceAtomic: centsToAtomic(input.budgetCents!), name: `${catalog.name} · $${input.budgetCents! / 100}` } : undefined;
+    const pack = catalog ? { ...catalog, budgetCents: input.budgetCents!, priceAtomic: centsToAtomic(input.budgetCents!), name: `${catalog.name} · ${input.budgetCents! / 100} AUSD` } : undefined;
     const price = pack ? { amount: String(pack.budgetCents / 100), amountAtomic: pack.priceAtomic } : prices[input.packType as keyof typeof prices];
     const fingerprint = JSON.stringify({ packType: input.packType, packId: input.packId, budgetCents: input.budgetCents });
     const now = Date.now();

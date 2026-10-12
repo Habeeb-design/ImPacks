@@ -17,6 +17,7 @@ async function request<T>(path: string, token?: string, body?: unknown, key?: st
   return response.status === 204 ? undefined as T : response.json();
 }
 export const api = {
+  // Starts a durable purchase; fundingMode determines whether collection follows the reveal.
   startPurchase: (token: string, id: string, privyToken: string) => request<CheckoutStatus>(`${routes.checkout}/${encodeURIComponent(id)}/start`, token, {}, undefined, { "X-Privy-Token": privyToken }),
   paymentIntent: (token: string, id: string, privyToken: string) => request<import("@impacks/contracts").PaymentIntent>(`${routes.checkout}/${encodeURIComponent(id)}/payment-intent`, token, {}, undefined, { "X-Privy-Token": privyToken }),
   paymentRejected: (token: string, id: string, attemptId: string) => request<void>(`${routes.checkout}/${encodeURIComponent(id)}/payment-rejected`, token, { attemptId }),

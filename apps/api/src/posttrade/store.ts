@@ -118,7 +118,7 @@ export class PostTradeStore {
       return { positions: this.all(`SELECT p.*,s.market_id,s.question,s.side,s.closes_at FROM pt_positions p JOIN pt_sources s ON s.card_id=p.source_card_id WHERE p.owner=? AND p.quantity>0 ORDER BY p.rowid DESC`,owner).map(row => this.position(row)),
         listings:this.all("SELECT id FROM pt_listings WHERE seller=? ORDER BY rowid DESC LIMIT 200",owner).map(row=>this.listing(row.id,owner)),
         trades:this.all("SELECT id FROM pt_trades WHERE buyer=? OR seller=? ORDER BY rowid DESC LIMIT 200",owner,owner).map(row=>this.trade(row.id,owner)),
-        balanceCents:this.get("SELECT balance FROM pt_accounts WHERE owner=?",owner)!.balance, mode:"paper", currency:"SIMULATED_USD" };
+        balanceCents:this.get("SELECT balance FROM pt_accounts WHERE owner=?",owner)!.balance, mode:"paper", currency:"SIMULATED_AUSD" };
     });
   }
   list(owner: string, input: ListingRequest, key: string): ResaleListing {
@@ -159,14 +159,14 @@ export class PostTradeStore {
       const expires=Math.min(this.clock()+30000,row!.expires_at),id=randomUUID();
       this.run("INSERT INTO pt_quotes VALUES (?,?,?,?,?,?)",id,owner,input.listingId,input.quantity,row!.price,expires);
       return { id,listingId:input.listingId,quantity:input.quantity,priceCents:row!.price,subtotalCents:row!.price*input.quantity,feeCents:0,
-        totalCents:row!.price*input.quantity,expiresAt:iso(expires),mode:"paper",currency:"SIMULATED_USD" };
+        totalCents:row!.price*input.quantity,expiresAt:iso(expires),mode:"paper",currency:"SIMULATED_AUSD" };
     });
   }
   trade(id:string,owner:string):ResaleTrade {
     const row=this.get("SELECT * FROM pt_trades WHERE id=? AND (buyer=? OR seller=?)",id,owner,owner);
     if(!row) fail("TRADE_NOT_FOUND","Trade not found.",404);
     return { id:row!.id,quoteId:row!.quote_id,listingId:row!.listing_id,quantity:row!.quantity,priceCents:row!.price,proceedsCents:row!.total,
-      buyerPositionId:row!.buyer_position_id,role:row!.buyer===owner?"buyer":"seller",status:"completed",createdAt:iso(row!.created_at),mode:"paper",currency:"SIMULATED_USD",payout:"not_redeemable" };
+      buyerPositionId:row!.buyer_position_id,role:row!.buyer===owner?"buyer":"seller",status:"completed",createdAt:iso(row!.created_at),mode:"paper",currency:"SIMULATED_AUSD",payout:"not_redeemable" };
   }
   buy(owner:string,quoteId:string,key:string):ResaleTrade {
     return this.transaction(()=>{
@@ -181,7 +181,7 @@ export class PostTradeStore {
       if(l.status!=="open" || l.expires_at<=this.clock() || l.quantity<q!.quantity || l.seller===owner || l.price!==q!.price) fail("QUANTITY_UNAVAILABLE","Listing changed or sold. Request a fresh quote.");
       const p=this.get("SELECT * FROM pt_positions WHERE id=?",l.position_id)!;
       const total=q!.quantity*q!.price, cash=this.get("SELECT balance FROM pt_accounts WHERE owner=?",owner)!;
-      if(cash.balance<total) fail("INSUFFICIENT_BALANCE","Not enough simulated USD.");
+      if(cash.balance<total) fail("INSUFFICIENT_BALANCE","Not enough simulated AUSD.");
       const id=randomUUID(),positionId=randomUUID(),disposedCost=q!.quantity===p.quantity?p.cost:Math.floor(p.cost*q!.quantity/p.quantity);
       this.run("UPDATE pt_positions SET quantity=quantity-?,reserved=reserved-?,cost=cost-? WHERE id=?",q!.quantity,q!.quantity,disposedCost,p.id);
       this.run("INSERT INTO pt_positions VALUES (?,?,?,?,0,?)",positionId,owner,p.source_card_id,q!.quantity,total);

@@ -22,16 +22,18 @@ export function PacksBrowser({ compact = false }: { compact?: boolean }) {
   const [rotating, setRotating] = useState(false);
   const [paused, setPaused] = useState(false);
   const rail = useRef<HTMLDivElement>(null);
-  const load = useCallback(async () => {
+  const request = useRef(0);
+  const load = useCallback(() => {
+    const current = ++request.current;
     setLoading(true); setCatalogError(""); setDiscoveryError("");
-    const [catalog, markets] = await Promise.allSettled([api.packs(), api.marketCategories()]);
-    if (catalog.status === "fulfilled") setPacks(catalog.value.packs);
-    else { setPacks([]); setCatalogError("Pack availability couldn’t load."); }
-    if (markets.status === "fulfilled") setDiscovery(markets.value);
-    else { setDiscovery(null); setDiscoveryError("Gemini genres are unavailable right now."); }
-    setLoading(false);
+    // Pack links depend only on the catalog. Optional genre discovery must not hold them up.
+    void api.packs().then(catalog => { if (request.current === current) setPacks(catalog.packs); })
+      .catch(() => { if (request.current === current) { setPacks([]); setCatalogError("Pack availability couldn’t load."); } })
+      .finally(() => { if (request.current === current) setLoading(false); });
+    void api.marketCategories().then(markets => { if (request.current === current) setDiscovery(markets); })
+      .catch(() => { if (request.current === current) { setDiscovery(null); setDiscoveryError("Gemini genres are unavailable right now."); } });
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { load(); return () => { request.current++; }; }, [load]);
   const genres = groupMarketGenres(discovery?.categories ?? [], packs);
   const filtered = matchingGenres(genres, group, search);
   const current = filtered.find(genre => genre.id === selected) ?? filtered[0];
@@ -71,7 +73,7 @@ export function PacksBrowser({ compact = false }: { compact?: boolean }) {
       <label className={styles.search}><span aria-hidden="true">⌕</span><input aria-label="Search editions or topics" placeholder="Find your world" value={search} onChange={event => { setSearch(event.target.value); setRotating(false); }}/>{search && <button aria-label="Clear search" onClick={() => setSearch("")}>×</button>}</label>
     </div>
     {(catalogError || discoveryError) && <div className={styles.error} role="status"><span>{catalogError} {discoveryError} {discoveryError && "Only confirmed pack catalog entries are shown."}</span><button onClick={() => void load()} disabled={loading}>Try again</button></div>}
-    {loading && genres.length === 0 ? <p className={styles.empty} role="status">Unwrapping the editions…</p> : filtered.length === 0 ? <div className={styles.empty}><h3>No editions found.</h3><p>Try another topic or explore all editions.</p><button className="secondary" onClick={reset}>Reset filters</button></div> : <>
+    {loading && packs.length === 0 ? <p className={styles.empty} role="status">Unwrapping the editions…</p> : filtered.length === 0 ? <div className={styles.empty}><h3>No editions found.</h3><p>Try another topic or explore all editions.</p><button className="secondary" onClick={reset}>Reset filters</button></div> : <>
       <div className={styles.rail} ref={rail} aria-roledescription="carousel" aria-label="Pack editions"
         onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onPointerDown={() => setRotating(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={event => {if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);}}
         onKeyDown={event => { if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); setRotating(false); selectIndex(currentIndex + (event.key === "ArrowRight" ? 1 : -1)); } }}>

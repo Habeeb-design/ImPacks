@@ -18,14 +18,14 @@ export interface ResaleListing {
 }
 export interface ResaleQuote {
   id: string; listingId: string; quantity: number; priceCents: number; subtotalCents: number; feeCents: 0;
-  totalCents: number; expiresAt: string; mode: "paper"; currency: "SIMULATED_USD";
+  totalCents: number; expiresAt: string; mode: "paper"; currency: "SIMULATED_AUSD";
 }
 export interface ResaleTrade {
   id: string; quoteId: string; listingId: string; quantity: number; priceCents: number; proceedsCents: number;
   buyerPositionId: string; role: "buyer" | "seller"; status: "completed"; createdAt: string;
-  mode: "paper"; currency: "SIMULATED_USD"; payout: "not_redeemable";
+  mode: "paper"; currency: "SIMULATED_AUSD"; payout: "not_redeemable";
 }
 export interface PostTradePortfolio {
   positions: Position[]; listings: ResaleListing[]; trades: ResaleTrade[];
-  balanceCents: number; mode: "paper"; currency: "SIMULATED_USD";
+  balanceCents: number; mode: "paper"; currency: "SIMULATED_AUSD";
 }

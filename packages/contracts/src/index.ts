@@ -17,6 +17,7 @@ export const MIN_PACK_CENTS = 2000;
 export const MAX_PACK_CENTS = 25000;
 export const PACK_BUDGET_STEP_CENTS = 500;
 export const PACK_PRICE_PRESETS_DOLLARS = [20, 50, 100] as const;
+export const PACK_THEMES = ["crypto", "sports", "politics", "economics", "commodities", "business", "culture", "tech", "weather", "mixed"] as const;
 export function centsToAtomic(cents: number): string {
   return String(cents * 10_000);
 }
@@ -36,7 +37,7 @@ export const walletAddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/, "Supp
   .refine(address => !/^0x0{40}$/.test(address), "The zero address is not a wallet.");
 export const checkoutSchema = z.strictObject({
   packType: z.enum(["starter", "premium", "ultimate", "category"]),
-  packId: z.enum(["crypto", "sports", "mixed"]).optional(),
+  packId: z.enum(PACK_THEMES).optional(),
   budgetCents: quoteSchema.shape.budgetCents,
   disclosureVersion: z.literal(DISCLOSURE_VERSION).optional(),
   buyerAddress: walletAddressSchema.optional(),
@@ -70,7 +71,7 @@ export type FulfillmentCompleteRequest = z.infer<typeof fulfillmentCompleteSchem
 /** Internal backend-only contract. fulfillmentId MUST be the issuer's durable idempotency key. */
 export interface FulfillmentAuthorization {
   fulfillmentId: string; purchaseId: string; buyerAddress: string; packType: CheckoutRequest["packType"];
-  transactionHash: string; status: "processing" | "fulfilled";
+  transactionHash: string | null; status: "processing" | "fulfilled";
   requestId: string; attempt: number; leaseExpiresAt: string; recoveryRequired: boolean;
   createdAt: string; updatedAt: string; fulfilledAt: string | null; resultId: string | null;
 }
@@ -106,7 +107,7 @@ export interface CheckoutPurchase {
   paymentBlockHash: string | null;
   paymentLogIndex: number | null;
 }
-export type Theme = "crypto" | "sports" | "politics" | "economics" | "commodities" | "business" | "culture" | "tech" | "weather" | "mixed";
+export type Theme = (typeof PACK_THEMES)[number];
 export type Side = "YES" | "NO";
 export interface User { id: string; displayName: string }
 export interface Session { token: string; user: User; mode: "demo" }
@@ -133,7 +134,7 @@ export interface Card {
 export interface Opening {
   id: string; quoteId: string; packName: string; createdAt: string; theme?: Theme;
   status: "completed" | "partial" | "pending" | "failed";
-  payment: { status: "confirmed" | "failed" | "unknown"; reference: string | null };
+  payment: { status: "pending" | "confirmed" | "failed" | "unknown"; reference: string | null };
   cards: Card[]; mode: "demo" | "sandbox";
 }
 export interface Portfolio { openings: Opening[] }
@@ -195,6 +196,7 @@ export interface AusdRefund {
 
 /** Public status; never includes internal credentials, leases or signed transactions. */
 export interface CheckoutCapabilities {
+  fundingMode?: "payment-first" | "platform-advance";
   purchaseMode?: "demo" | "sandbox"; enabledPackIds?: string[];
   available: boolean; chainId: 11155111; network: "Ethereum Sepolia";
   paymentEnabled: boolean; orderSubmissionEnabled: boolean; refundBroadcastEnabled: boolean;
@@ -203,6 +205,7 @@ export interface CheckoutCapabilities {
 export const paymentAttemptSchema = z.strictObject({ attemptId: z.string().uuid() });
 export interface PaymentIntent { attemptId: string; purchase: CheckoutPurchase }
 export interface PipelineStatus {
+  fundingMode?: "payment-first" | "platform-advance";
   state: "awaiting-payment" | "preparing" | "executing" | "reconciliation-required" | "settled" | "refunding" | "completed";
   message: string; paymentRequested: boolean; paymentHash: string | null;
 }

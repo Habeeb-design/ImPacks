@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Opening, SandboxExecution, SandboxOrderIntent } from "@impacks/contracts";
+import { PACK_THEMES, type Opening, type SandboxExecution, type SandboxOrderIntent } from "@impacks/contracts";
 import type { Hash } from "viem";
 import { CheckoutService } from "../services/checkout.js";
 import { ExecutionService } from "../services/execution.js";
@@ -16,8 +16,8 @@ export class PurchaseWorker {
     private checkout: CheckoutService, private payments: PaymentVerifier,
     private refunds: RefundService, private transfers?: RefundTransport) {
     if (ledger.policy.accountKey !== gateway.accountKey) throw new Error("Wrong exchange account");
-    this.execution = new ExecutionService(ledger.store, { listEligible: theme => gateway.markets(theme) }, ledger.policy.feeReserveBps);
-    this.fulfillment = new FulfillmentService(ledger.store);
+    this.execution = new ExecutionService(ledger.store, { listEligible: theme => gateway.markets(theme) }, ledger.policy.feeReserveBps, id => ledger.isAdvanced(id));
+    this.fulfillment = new FulfillmentService(ledger.store, id => ledger.isAdvanced(id));
   }
   async readiness() {
     try {
@@ -25,15 +25,19 @@ export class PurchaseWorker {
       await this.transfers.pendingNonce();
       const { availableCents } = await this.gateway.readiness();
       if (availableCents < this.ledger.policy.capacityCents) throw new Error("Configured sandbox reservation ceiling exceeds available USD");
-      const markets = await this.gateway.markets("crypto");
-      if (new Set(markets.map(m => m.id)).size < 3) throw new Error("Fewer than three supported sandbox instruments");
-      this.ledger.heartbeat(true, "Sandbox worker is ready");
+      const checks = await Promise.allSettled(PACK_THEMES.map(async theme => {
+        const markets = await this.gateway.markets(theme);
+        return new Set(markets.filter(m => m.active && (theme === "mixed" || m.theme === theme)).map(m => m.id)).size >= 3;
+      }));
+      const enabled = PACK_THEMES.filter((_, index) => checks[index].status === "fulfilled" && checks[index].value);
+      if (!enabled.length) throw new Error("Fewer than three supported sandbox instruments");
+      this.ledger.heartbeat(true, "Testnet purchases are ready", enabled);
     } catch {
-      this.ledger.heartbeat(false, "Sandbox account, supported instruments, or balance is unavailable");
+      this.ledger.heartbeat(false, "Testnet trading account, supported predictions, or balance is unavailable");
     }
   }
-  async tick() {
-    await this.readiness();
+  async tick({ refreshReadiness = true } = {}) {
+    if (refreshReadiness) await this.readiness();
     const jobs = this.ledger.store.db.prepare("SELECT purchase_id FROM pipeline_jobs WHERE account_key=? AND state!='completed' ORDER BY updated_at LIMIT 50").all(this.gateway.accountKey);
     for (const row of jobs) await this.run(String(row.purchase_id));
   }
@@ -43,12 +47,28 @@ export class PurchaseWorker {
     try {
       let purchase = this.ledger.store.get(id);
       const job = this.ledger.row(id)!;
-      if (purchase.status !== "confirmed") {
+      const advance = this.ledger.isAdvanced(id);
+      const advancedOpening = advance ? this.ledger.opening(id) : null;
+      if (advancedOpening) {
+        // Filled cards are durable before collection. Never issue a second order to retry payment.
+        if (purchase.status !== "confirmed") {
+          if (!job.payment_hash) { this.ledger.update(id, token, "awaiting-payment"); return; }
+          purchase = await this.checkout.verify(id, job.payment_hash as Hash, purchase.buyerAddress);
+        }
+        await this.payments.verify(purchase, purchase.transactionHash as Hash);
+        if (!this.ledger.readFinal({ purchaseId: id } as SandboxExecution)) {
+          this.ledger.settle(id, token, this.execution.get(id), { ...advancedOpening,
+            payment: { status: "confirmed", reference: purchase.transactionHash } });
+        }
+        await this.refund(id, token);
+        return;
+      }
+      if (!advance && purchase.status !== "confirmed") {
         if (!job.payment_hash) { this.ledger.update(id, token, "awaiting-payment"); return; }
         purchase = await this.checkout.verify(id, job.payment_hash as Hash, purchase.buyerAddress);
       }
-      // Re-check canonical payment evidence before EVERY side-effect phase, including refunds.
-      await this.payments.verify(purchase, purchase.transactionHash as Hash);
+      // Standard purchases require canonical payment before execution. Advances require it before any refund.
+      if (!advance || purchase.status === "confirmed") await this.payments.verify(purchase, purchase.transactionHash as Hash);
       this.ledger.assertLease(id, token);
       if (this.ledger.readFinal({ purchaseId: id } as SandboxExecution)) { await this.refund(id, token); return; }
       this.ledger.update(id, token, "preparing");
@@ -72,7 +92,7 @@ export class PurchaseWorker {
           if (!this.ledger.ready()) throw new Error("Worker unavailable for new submissions; existing orders remain recoverable");
           await this.gateway.markets(execution.pack.theme); // Fresh metadata only needed for new submissions.
           await this.gateway.validate(order);
-          await this.payments.verify(purchase, purchase.transactionHash as Hash);
+          if (!advance || purchase.status === "confirmed") await this.payments.verify(purchase, purchase.transactionHash as Hash);
           this.ledger.assertLease(id, token);
           if (!this.ledger.permit(id, token, order)) observed = await this.gateway.lookup(order);
           else {
@@ -106,10 +126,14 @@ export class PurchaseWorker {
       }
       execution = this.execution.get(id);
       if (execution.state === "reconciliation-required") throw new Error("Execution requires manual reconciliation; no automatic accounting clearance");
-      await this.payments.verify(purchase, purchase.transactionHash as Hash);
+      if (!advance || purchase.status === "confirmed") await this.payments.verify(purchase, purchase.transactionHash as Hash);
       const opening: Opening = { id: execution.fulfillmentId, quoteId: id, packName: execution.pack.name, theme: execution.pack.theme,
         createdAt: execution.createdAt, mode: "sandbox", status: execution.state === "completed" ? "completed" : execution.state === "partial" ? "partial" : "failed",
-        payment: { status: "confirmed", reference: purchase.transactionHash }, cards: execution.orders.map(order => order.card) };
+        payment: { status: purchase.status === "confirmed" ? "confirmed" : "pending", reference: purchase.transactionHash }, cards: execution.orders.map(order => order.card) };
+      if (advance && purchase.status !== "confirmed") {
+        this.ledger.recordAdvanceResult(id, token, execution, opening);
+        return;
+      }
       this.ledger.settle(id, token, execution, opening);
       await this.refund(id, token);
     } catch {

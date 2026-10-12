@@ -14,10 +14,21 @@ async function handle(request: Request) {
     const headers = new Headers(request.headers);
     headers.delete("host"); headers.delete("content-length");
     try {
-      return await fetch(`${origin}${url.pathname}${url.search}`, {
+      const init = {
         method: request.method, headers, cache: "no-store", redirect: "manual",
         body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer(),
-      });
+      } satisfies RequestInit;
+      // The local API briefly disconnects during source reloads. Only replay reads;
+      // payment/order writes must retain their explicit client retry identity.
+      const tries = request.method === "GET" || request.method === "HEAD" ? 3 : 1;
+      for (let attempt = 0; attempt < tries; attempt++) {
+        try { return await fetch(`${origin}${url.pathname}${url.search}`, init); }
+        catch (error) {
+          if (attempt === tries - 1) throw error;
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      throw new Error("API connection unavailable");
     } catch {
       return Response.json({ error: { code: "API_UNAVAILABLE", message: "The service is unavailable. Please try again shortly." } }, { status: 503 });
     }

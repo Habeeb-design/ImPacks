@@ -40,8 +40,8 @@ test("new requests reject prior outcomes, invalid nonces and spending beyond the
   }
   assert.throws(() => prepareGeminiSandboxBuy(intent(), { ...credentials, apiSecret: "" }));
 });
-test("all ten Mekila catalog definitions survive without advertising unsupported demo purchases", () => {
+test("all ten Mekila catalog definitions are available in the shared catalog", () => {
   assert.equal(geminiPacks.length, 10);
   assert.equal(new Set(geminiPacks.map(pack => pack.theme)).size, 10);
-  assert.deepEqual(packs.map(pack => pack.id), ["crypto", "sports", "mixed"]);
+  assert.deepEqual(packs, geminiPacks);
 });

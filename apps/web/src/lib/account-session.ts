@@ -1,4 +1,4 @@
-import type { Session } from "@impacks/contracts";
+import { PACK_THEMES, type Session } from "@impacks/contracts";
 import { api, ApiError } from "./api";
 
 type SessionApi = Pick<typeof api, "me" | "privyLogin">;
@@ -20,8 +20,9 @@ export async function resolveAccountSession(userId: string, cached: Session | nu
   return session;
 }
 
+const returnPath = new RegExp(`^/(?:marketplace|dashboard|packs|category/(?:${PACK_THEMES.join("|")}))(?:\\?[^#]*)?$`);
 export function postLoginPath(next: string | null): string {
   // Only return to known app routes; never allow an external redirect from a query string.
-  if (!next || !/^\/(?:marketplace|dashboard|packs|category\/(?:crypto|sports|mixed))(?:\?[^#]*)?$/.test(next)) return "/packs";
+  if (!next || !returnPath.test(next)) return "/packs";
   return next;
 }

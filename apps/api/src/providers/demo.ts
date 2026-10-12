@@ -2,8 +2,8 @@ import { geminiPacks } from "./gemini-catalog.js";
 import type { Market, Pack } from "@impacks/contracts";
 import type { Providers } from "./ports.js";
 
-// Only these editions have explicit demo fixtures. Other catalog entries stay previews.
-export const packs: Pack[] = geminiPacks.filter(pack => ["crypto", "sports", "mixed"].includes(pack.id));
+// Shared edition catalog. Testnet availability is determined by the purchase worker.
+export const packs: Pack[] = geminiPacks;
 // UI fixtures, not Gemini markets or live odds.
 const markets: Market[] = [
   { id: "demo-btc", question: "Will Bitcoin finish the month above $100,000?", theme: "crypto", yesPriceCents: 55, noPriceCents: 45, active: true },

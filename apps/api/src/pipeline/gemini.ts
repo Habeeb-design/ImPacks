@@ -7,6 +7,14 @@ import type { OrderObservation, TradingGateway } from "./ports.js";
 import { PipelineStore } from "./store.js";
 
 const BASE = "https://api.sandbox.gemini.com";
+/** Gemini emits numeric identifiers beyond JS's safe integer range. Preserve their wire digits. */
+export function parseGeminiJson(text: string): unknown {
+  return JSON.parse(text, (key: string, value: unknown, context?: { source?: string }) => {
+    if (typeof value !== "number" || Number.isSafeInteger(value) || !Number.isInteger(value)) return value;
+    if (["orderId", "order_id", "tid"].includes(key) && context?.source && /^\d+$/.test(context.source)) return context.source;
+    throw new Error("Unsupported unsafe numeric value in Gemini response");
+  });
+}
 /** Exact six-decimal USD; reject unsupported precision instead of rounding fees away. */
 export function decimalAtomic(value: string): bigint {
   if (!/^\d+(?:\.\d+)?$/.test(value)) throw new Error("Invalid decimal money");
@@ -24,15 +32,25 @@ const orderSchema = z.object({ orderId: z.union([z.number().int().safe().nonnega
   symbol: positive, side: z.literal("buy"), outcome: z.enum(["yes", "no"]), status: z.enum(["open", "filled", "cancelled"]),
   quantity: positive, filledQuantity: positive, remainingQuantity: positive, price: positive,
   avgExecutionPrice: z.string().nullable(), createdAt: positive });
+const tradeSchema = z.object({ order_id: positive, tid: z.union([positive, z.number().int().safe().nonnegative()]),
+  amount: positive, price: positive, fee_amount: positive, fee_currency: z.literal("USD"), type: z.literal("Buy"),
+  symbol: positive.optional(), break: z.string().optional() });
+const historyOrderSchema = z.object({ order_id: positive, client_order_id: positive, symbol: positive,
+  side: z.literal("buy"), price: positive, original_amount: positive, executed_amount: positive,
+  remaining_amount: positive, is_live: z.boolean(), is_cancelled: z.boolean(), trades: z.array(tradeSchema) });
 const contractSchema = z.object({ instrumentSymbol: positive, marketState: z.string(),
   quantityIncrement: positive, quantityMinimum: positive, priceIncrement: positive, priceMinimum: positive,
   prices: z.object({ buy: z.object({ yes: positive.optional(), no: positive.optional() }) }) });
 const eventsSchema = z.object({ data: z.array(z.object({ title: positive, contracts: z.array(contractSchema) })) });
+const categoryAliases: Partial<Record<Theme, string[]>> = { culture: ["culture", "entertainment"], tech: ["tech", "technology"] };
 
 type Contract = z.infer<typeof contractSchema>;
 export class GeminiSandboxGateway implements TradingGateway {
   readonly accountKey: string;
   private metadata = new Map<string, Contract>();
+  private categories?: { values: string[]; until: number };
+  private categoryRequest?: Promise<string[]>;
+  private eventRequests = new Map<string, Promise<z.infer<typeof eventsSchema>>>();
   constructor(private ledger: PipelineStore, private key: string, private secret: string,
     private nonceMode: "incremental" | "time" = "incremental", private transport: typeof fetch = fetch) {
     if (!key || !secret) throw new Error("Gemini sandbox credentials are required");
@@ -47,7 +65,7 @@ export class GeminiSandboxGateway implements TradingGateway {
   private async response(url: string, init: RequestInit = {}) {
     const response = await this.transport(url, { ...init, redirect: "error", signal: AbortSignal.timeout(10_000) });
     if (!response.ok) throw new Error(`Gemini sandbox request failed (${response.status})`);
-    return response.json() as Promise<unknown>;
+    return parseGeminiJson(await response.text());
   }
   private auth(path: string, body: Record<string, unknown> = {}, method = "POST") {
     const payload = Buffer.from(JSON.stringify({ ...body, request: path, nonce: this.nonce(), ...(this.key.startsWith("master-") ? { account: "primary" } : {}) })).toString("base64");
@@ -66,11 +84,18 @@ export class GeminiSandboxGateway implements TradingGateway {
     return { availableCents };
   }
   async markets(theme: Theme): Promise<Market[]> {
-    const themes = theme === "mixed" ? geminiPacks.map(pack => pack.theme).filter(value => value !== "mixed") : [theme];
+    const available = await this.availableCategories();
+    const themes = (theme === "mixed" ? geminiPacks.map(pack => pack.theme).filter(value => value !== "mixed") : [theme])
+      .flatMap(value => (categoryAliases[value] ?? [value]).filter(category => available.includes(category)).map(category => ({ theme: value, category })));
     const result: Market[] = [];
     this.metadata.clear();
-    for (const category of themes) {
-      const events = eventsSchema.parse(await this.response(`${BASE}/v1/prediction-markets/events?category=${category}&limit=100`));
+    const reads = await Promise.allSettled(themes.map(({ category }) => this.events(category)));
+    for (const [index, read] of reads.entries()) {
+      if (read.status === "rejected") {
+        if (theme !== "mixed") throw read.reason;
+        continue; // Chaos draws only from categories that actually supplied quotes.
+      }
+      const events = read.value, category = themes[index].theme;
       for (const event of events.data) for (const contract of event.contracts) {
         if (contract.marketState !== "open" || !contract.prices.buy.yes || !contract.prices.buy.no) continue;
         const yes = decimalAtomic(contract.prices.buy.yes), no = decimalAtomic(contract.prices.buy.no);
@@ -83,7 +108,25 @@ export class GeminiSandboxGateway implements TradingGateway {
           yesPriceCents: Number(yes / 10000n), noPriceCents: Number(no / 10000n), active: true });
       }
     }
-    return result;
+    return [...new Map(result.map(market => [market.id, market])).values()];
+  }
+  private async availableCategories(): Promise<string[]> {
+    if (this.categories && this.categories.until > Date.now()) return this.categories.values;
+    if (this.categoryRequest) return this.categoryRequest;
+    this.categoryRequest = this.response(`${BASE}/v1/prediction-markets/categories?status=active`).then(body => {
+      const values = z.object({ categories: z.array(positive) }).parse(body).categories.map(value => value.toLowerCase());
+      this.categories = { values, until: Date.now() + 30_000 };
+      return values;
+    }).finally(() => { this.categoryRequest = undefined; });
+    return this.categoryRequest;
+  }
+  private events(category: string) {
+    const existing = this.eventRequests.get(category);
+    if (existing) return existing;
+    const request = this.response(`${BASE}/v1/prediction-markets/events?category=${encodeURIComponent(category)}&limit=100`)
+      .then(body => eventsSchema.parse(body)).finally(() => { this.eventRequests.delete(category); });
+    this.eventRequests.set(category, request);
+    return request;
   }
   async validate(order: SandboxOrderIntent) {
     if (!this.metadata.has(order.card.marketId)) throw new Error("Sandbox instrument metadata unavailable");
@@ -118,6 +161,39 @@ export class GeminiSandboxGateway implements TradingGateway {
     // Absence is NOT a rejection and never grants another submission permit.
     return null;
   }
+  private async historyTrades(order: z.infer<typeof orderSchema>) {
+    // Prediction fills can be absent from /mytrades while account order history includes them.
+    // Bound this recovery read; missing/older history remains unresolved, never zero-fee settlement.
+    const rows = z.array(z.unknown()).parse(await this.auth("/v1/orders/history", { limit_orders: 500 }));
+    const found = rows.filter(row => typeof row === "object" && row !== null && "order_id" in row
+      && String(row.order_id) === String(order.orderId));
+    if (found.length !== 1) throw new Error("Order fee history unavailable or ambiguous");
+    const history = historyOrderSchema.parse(found[0]);
+    if (history.client_order_id !== order.clientOrderId || history.symbol.toUpperCase() !== order.symbol.toUpperCase()
+      || decimalAtomic(history.price) !== decimalAtomic(order.price)
+      || decimalAtomic(history.original_amount) !== decimalAtomic(order.quantity)
+      || decimalAtomic(history.executed_amount) !== decimalAtomic(order.filledQuantity)
+      || decimalAtomic(history.remaining_amount) !== decimalAtomic(order.remainingQuantity)
+      || history.is_live !== (order.status === "open") || history.is_cancelled !== (order.status === "cancelled")) {
+      throw new Error("Order fee history differs from prediction order");
+    }
+    // The enclosing, identity-checked order supplies the symbol omitted by nested fill rows.
+    return history.trades.map(trade => ({ ...trade, symbol: trade.symbol ?? history.symbol }));
+  }
+  private tradeTotals(rows: unknown[], order: z.infer<typeof orderSchema>) {
+    const trades = z.array(tradeSchema.extend({ symbol: positive })).parse(rows);
+    if (trades.some(trade => trade.order_id !== String(order.orderId)
+      || trade.symbol.toUpperCase() !== order.symbol.toUpperCase() || trade.break)
+      || new Set(trades.map(trade => String(trade.tid))).size !== trades.length) throw new Error("Unusable trade evidence");
+    let quantity = 0n, cost = 0n, fees = 0n;
+    for (const trade of trades) {
+      const q = decimalAtomic(trade.amount), price = decimalAtomic(trade.price);
+      if (q <= 0n || price <= 0n || price > decimalAtomic(order.price) || (q * price) % 1_000_000n) throw new Error("Unsupported fill cost");
+      quantity += q; cost += q * price / 1_000_000n; fees += decimalAtomic(trade.fee_amount);
+    }
+    if (quantity !== decimalAtomic(order.filledQuantity)) throw new Error("Incomplete fee evidence");
+    return { cost, fees, trades };
+  }
   private async observe(intent: SandboxOrderIntent, input: unknown): Promise<OrderObservation> {
     const order = orderSchema.parse(input);
     if (order.clientOrderId !== intent.clientOrderId || order.symbol !== intent.card.marketId
@@ -130,24 +206,18 @@ export class GeminiSandboxGateway implements TradingGateway {
     let fee = 0n, feesFinal = quantity === 0 && order.status === "cancelled";
     let evidence = JSON.stringify(order);
     if (quantity > 0) {
-      try {
+      const sources = [async () => {
         const rows = z.array(z.unknown()).parse(await this.auth("/v1/mytrades", { symbol: intent.card.marketId, timestamp: Date.parse(order.createdAt), limit_trades: 500 }));
-        const matchingRows = rows.filter(row => typeof row === "object" && row !== null && "order_id" in row && String(row.order_id) === String(order.orderId));
-        const matching = z.array(z.object({ order_id: z.string(), tid: z.union([z.string(), z.number().int().safe()]),
-          amount: z.string(), price: z.string(), fee_amount: z.string(), fee_currency: z.string(), type: z.literal("Buy"),
-          symbol: z.string(), break: z.string().optional() })).parse(matchingRows);
-        if (matching.some(trade => trade.symbol !== intent.card.marketId || trade.fee_currency !== "USD" || trade.break)
-          || new Set(matching.map(trade => String(trade.tid))).size !== matching.length) throw new Error("Unusable trade evidence");
-        let tradeQuantity = 0n, tradeCost = 0n, tradeFees = 0n;
-        for (const trade of matching) {
-          const q = decimalAtomic(trade.amount), price = decimalAtomic(trade.price);
-          if ((q * price) % 1_000_000n) throw new Error("Unsupported fill cost precision");
-          tradeQuantity += q; tradeCost += q * price / 1_000_000n; tradeFees += decimalAtomic(trade.fee_amount);
-        }
-        if (tradeQuantity !== filled) throw new Error("Incomplete fee evidence");
-        cost = tradeCost; fee = tradeFees; feesFinal = order.status !== "open";
-        evidence = JSON.stringify({ order, trades: matching });
-      } catch { /* Preserve observed fills; absent fee evidence never authorizes settlement. */ }
+        return rows.filter(row => typeof row === "object" && row !== null && "order_id" in row && String(row.order_id) === String(order.orderId));
+      }, () => this.historyTrades(order)];
+      for (const source of sources) {
+        try {
+          const total = this.tradeTotals(await source(), order);
+          cost = total.cost; fee = total.fees; feesFinal = order.status !== "open";
+          evidence = JSON.stringify({ order, trades: total.trades });
+          break;
+        } catch { /* Preserve observed fills; absent fee evidence never authorizes settlement. */ }
+      }
     }
     return { clientOrderId: intent.clientOrderId, exchangeOrderId: String(order.orderId), state: order.status,
       quantity, costCents: cents(cost), feeCents: cents(fee), costAtomic: String(cost), feeAtomic: String(fee), feesFinal,

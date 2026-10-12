@@ -15,7 +15,8 @@ export function configuredPipeline(store: CheckoutStore, env: NodeJS.ProcessEnv 
   if (!env.GEMINI_API_KEY || !env.GEMINI_API_SECRET) throw new Error("Configure sandbox credentials");
   if (!env.GEMINI_SANDBOX_BUDGET_CENTS || !env.GEMINI_FEE_RESERVE_BPS) throw new Error("Configure an explicit sandbox USD ceiling and fee reservation policy");
   return new PipelineStore(store, { accountKey: createHash("sha256").update(env.GEMINI_API_KEY).digest("hex"),
-    capacityCents: Number(env.GEMINI_SANDBOX_BUDGET_CENTS), feeReserveBps: Number(env.GEMINI_FEE_RESERVE_BPS) });
+    capacityCents: Number(env.GEMINI_SANDBOX_BUDGET_CENTS), feeReserveBps: Number(env.GEMINI_FEE_RESERVE_BPS),
+    platformAdvance: env.TESTNET_PLATFORM_ADVANCE_ENABLED === "1" });
 }
 export function createPurchaseWorker(transfers?: RefundTransport, env: NodeJS.ProcessEnv = process.env) {
   const store = new CheckoutStore(env.AUSD_DATABASE_PATH ?? defaultCheckoutDatabasePath);

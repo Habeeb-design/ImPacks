@@ -25,9 +25,11 @@ A seller-set ask and a buyer acceptance quote implement resale. Gemini's current
 
 ## Shipped paper slice
 
+All displayed prices and balances use AUSD. The paper ledger is denominated in `SIMULATED_AUSD`, not on-chain test AUSD; existing integer-cent paper entries retain their nominal amount under this naming change. No conversion, token funding or redemption is performed. Gemini sandbox accounting remains USD; card views label its nominal 1:1 AUSD equivalents rather than promising AUSD settlement.
+
 The opt-in standalone API owns a durable SQLite ledger separate from the checkout database. It accepts only trusted server-side, confirmed demo fills with demo order identifiers. No browser endpoint can mint a holding or provide an owner, fill, price reference or opening. Source card and source order IDs are unique. Importing an original opening after resale never recreates the seller's holding.
 
-Each authenticated Privy account receives a one-time **100 simulated USD** credit in this ledger. It has no relation to the 50-test-AUSD welcome grant, any wallet balance, Gemini buying power or a redeemable claim. Paper cash credits and transfer debits/credits have unique references.
+Each authenticated Privy account receives a one-time **100 simulated AUSD** credit in this ledger. It has no relation to the 50-test-AUSD welcome grant, any wallet balance, Gemini buying power or a redeemable claim. Paper cash credits and transfer debits/credits have unique references.
 
 The authoritative `Position` contains remaining quantity, reserved/listed quantity, available quantity, source fill, market/side, and remaining cost basis. Original pack fills stay unchanged as history. The dashboard projects remaining ownership for original fills and directs managed positions into Trade; bought-from-user positions appear in the marketplace's current-holdings view. Pack history itself is still in memory and may disappear on restart; the post-trade ledger survives.
 
@@ -73,7 +75,7 @@ Shared types and schemas are in `packages/contracts/src/posttrade.ts`, re-export
 | `POST /api/posttrade/trades` | `{quoteId, confirmSimulation:true}` and original Idempotency-Key |
 | `GET /api/posttrade/trades/:id` | Only buyer or seller can retrieve the completed paper trade |
 
-The DTOs explicitly say `mode: paper`, `currency: SIMULATED_USD` and `payout: not_redeemable`. No on-chain success is claimed. Fees are zero in the paper demonstration. Session failure requires reconnecting the same Privy identity; the pending command remains scoped to that identity.
+The DTOs explicitly say `mode: paper`, `currency: SIMULATED_AUSD` and `payout: not_redeemable`. No on-chain success is claimed. Fees are zero in the paper demonstration. Session failure requires reconnecting the same Privy identity; the pending command remains scoped to that identity.
 
 ## Handoff to the integration branch
 

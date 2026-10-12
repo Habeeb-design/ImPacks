@@ -16,13 +16,13 @@ const genres: Genre[] = [
   { id: "crypto", name: "Crypto", group: "Markets & money", description: "Big moves. New highs. A world that never sleeps.", topics: ["Bitcoin", "Ethereum", "Price milestones"], providerCategories: ["Crypto"], packId: "crypto" },
   { id: "sports", name: "Sports", group: "Sports", description: "The next play could change everything.", topics: ["Pro Football", "Pro Baseball", "Championships"], providerCategories: ["Sports", "Pro Football", "Pro Baseball"], packId: "sports" },
   { id: "mixed", name: "Chaos", group: "Wildcards", description: "Leave your comfort zone. Let the pack decide.", topics: ["Crypto", "Sports", "Unexpected combinations"], providerCategories: [], packId: "mixed" },
-  { id: "politics", name: "Politics", group: "World & culture", description: "Big decisions. Close races. A new reason to follow.", topics: ["Elections", "Midterms", "Policy"], providerCategories: ["Politics", "Midterms"] },
-  { id: "economics", name: "Economics", group: "Markets & money", description: "Small numbers. World-changing consequences.", topics: ["Interest rates", "Inflation", "Growth"], providerCategories: ["Economics"] },
-  { id: "commodities", name: "Commodities", group: "Markets & money", description: "From the ground up. Follow what powers the world.", topics: ["Oil", "Gold", "Energy"], providerCategories: ["Commodities"] },
-  { id: "business", name: "Business", group: "Markets & money", description: "Follow the companies making their next move.", topics: ["Companies", "Deals", "Earnings"], providerCategories: ["Business"] },
-  { id: "tech", name: "Tech", group: "World & culture", description: "The future is being built. Pick a reason to watch.", topics: ["AI", "Technology", "Product launches"], providerCategories: ["Tech"] },
-  { id: "culture", name: "Culture", group: "World & culture", description: "The moments everyone will be talking about.", topics: ["Music", "Awards", "Entertainment"], providerCategories: ["Culture", "Entertainment"] },
-  { id: "weather", name: "Weather", group: "World & culture", description: "A forecast with a little more at stake.", topics: ["Temperature", "Forecasts", "Weather events"], providerCategories: ["Weather"] },
+  { id: "politics", packId: "politics", name: "Politics", group: "World & culture", description: "Big decisions. Close races. A new reason to follow.", topics: ["Elections", "Midterms", "Policy"], providerCategories: ["Politics", "Midterms"] },
+  { id: "economics", packId: "economics", name: "Economics", group: "Markets & money", description: "Small numbers. World-changing consequences.", topics: ["Interest rates", "Inflation", "Growth"], providerCategories: ["Economics"] },
+  { id: "commodities", packId: "commodities", name: "Commodities", group: "Markets & money", description: "From the ground up. Follow what powers the world.", topics: ["Oil", "Gold", "Energy"], providerCategories: ["Commodities"] },
+  { id: "business", packId: "business", name: "Business", group: "Markets & money", description: "Follow the companies making their next move.", topics: ["Companies", "Deals", "Earnings"], providerCategories: ["Business"] },
+  { id: "tech", packId: "tech", name: "Tech", group: "World & culture", description: "The future is being built. Pick a reason to watch.", topics: ["AI", "Technology", "Product launches"], providerCategories: ["Tech"] },
+  { id: "culture", packId: "culture", name: "Culture", group: "World & culture", description: "The moments everyone will be talking about.", topics: ["Music", "Awards", "Entertainment"], providerCategories: ["Culture", "Entertainment"] },
+  { id: "weather", packId: "weather", name: "Weather", group: "World & culture", description: "A forecast with a little more at stake.", topics: ["Temperature", "Forecasts", "Weather events"], providerCategories: ["Weather"] },
 ];
 
 // Gemini includes navigation collections (Live) and subgenres alongside top-level genres.

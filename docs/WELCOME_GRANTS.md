@@ -106,3 +106,19 @@ Automated tests cover a file-backed PostgreSQL-compatible database reopen, dupli
 Before marking the deployed integration verified: run two workers against the real PostgreSQL service, create one new verified Privy account, record its one 50-AUSD transfer, repeat login/webhook delivery, restart the worker, and confirm there is still exactly one transfer and the wallet balance displays it. Funding secrets, hosted PostgreSQL, webhook configuration and this live testnet smoke test are not supplied by the code change.
 
 Primary references: [Privy user lookup](https://docs.privy.io/api-reference/users/get), [Privy events](https://docs.privy.io/user-management/users/webhooks/handling-events), [Svix verification](https://www.svix.com/guides/receiving/receive-webhooks-with-javascript-nodejs/), [Agora deployments](https://docs.agora.finance/developer/contract-deployments).
+
+## Local activation — October 11, 2026
+
+The local API and grant worker are enabled with an explicitly approved **10-account / 500-test-AUSD cap per UTC day**, one 50-test-AUSD grant per eligible account, and eligibility beginning `2026-10-11T07:00:00.000Z`. The dedicated treasury is `0x23a78B7ebaA6B7b34b0C59fc55287B81F5B79632`. This is distinct from the pack payment/refund treasury.
+
+`compose.grants.yaml` provisions PostgreSQL on loopback port 15432 with a persistent Docker volume. Its gitignored `apps/api/.env.grants-db` supplies `POSTGRES_USER`, `POSTGRES_DB` and a generated `POSTGRES_PASSWORD`; the shared API `DATABASE_URL` must match. Keep this file mode 0600. Start the configured database with:
+
+```sh
+docker compose -f compose.grants.yaml up -d --wait
+```
+
+Then use the migration and worker commands above. Do not remove the volume to retry a grant. The database, API and worker must remain running for automatic local funding.
+
+Three eligible accounts were queued through verified server-side Privy lookup. The first 50-AUSD transfer was mined successfully at block 11895148, transaction `0xbf99b4749a54b302d9d727c8142dfe2191d0b237c7babe3ee164bfa1d91f1f1b`; the recipient’s balance is 50 test AUSD. Safe confirmation and the remaining queue are being reconciled. No replacement transaction was created after the initial uncertain broadcast response.
+
+The local webhook signing secret is not registered in Privy, so webhook delivery is **not verified**. Authenticated UI enqueue after login supplies automatic funding locally. Refresh pages that previously observed grants disabled. Hosted rollout, multi-worker live acceptance and browser balance-display evidence remain outstanding. Grants transfer AUSD only, not Sepolia ETH for subsequent purchase gas.

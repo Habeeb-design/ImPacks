@@ -20,5 +20,6 @@ export interface RefundTransport {
   broadcast(signed: `0x${string}`): Promise<string>;
 }
 export interface PipelinePolicy {
+  platformAdvance?: boolean;
   accountKey: string; capacityCents: number; feeReserveBps: number;
 }

@@ -10,12 +10,13 @@ const budgets = { starter: 100, premium: 300, ultimate: 500 } as const;
 const conflict = (message: string): never => { throw new HttpError(409, "EXECUTION_CONFLICT", message); };
 /** Preparation/accounting only. There is intentionally no exchange submission capability. */
 export class ExecutionService {
-  constructor(private store: CheckoutStore, private markets: MarketProvider, private feeReserveBps?: number) {}
+  constructor(private store: CheckoutStore, private markets: MarketProvider, private feeReserveBps?: number,
+    private advanceAllowed: (id: string) => boolean = () => false) {}
 
   private authorize(purchaseId: string, input: FulfillmentAttemptRequest) {
     const job = new FulfillmentService(this.store).get(purchaseId);
     const purchase = this.store.getOwned(purchaseId, job.buyerAddress);
-    if (purchase.status !== "confirmed" || purchase.chainId !== 11155111 || purchase.mode !== "ausd-testnet") conflict("Confirmed testnet purchase required.");
+    if ((purchase.status !== "confirmed" && !this.advanceAllowed(purchaseId)) || purchase.chainId !== 11155111 || purchase.mode !== "ausd-testnet") conflict("Confirmed testnet purchase required.");
     if (job.status !== "processing" || job.requestId !== input.requestId || job.attempt !== input.attempt || Date.parse(job.leaseExpiresAt) <= Date.now()) conflict("An active fulfillment lease is required.");
     return { job, purchase };
   }
@@ -36,7 +37,7 @@ export class ExecutionService {
       const budgetCents = purchase.pack?.budgetCents ?? budgets[purchase.packType as keyof typeof budgets];
       if (BigInt(purchase.amountAtomic) !== BigInt(budgetCents) * 10000n || purchase.decimals !== 6) conflict("Purchase price does not match the server-controlled tier.");
       const pack: Pack = purchase.pack ?? { id: purchase.packType, name: `${purchase.packType} testnet pack`, theme: "mixed",
-        description: "Sandbox demonstration; separately funded USD, no conversion.", cardCount: 3,
+        description: "Testnet predictions; separately funded test USD, no conversion.", cardCount: 3,
         priceAtomic: purchase.amountAtomic, budgetCents };
       const timestamp = new Date().toISOString();
       const value: SandboxExecution = { fulfillmentId: job.fulfillmentId, purchaseId,

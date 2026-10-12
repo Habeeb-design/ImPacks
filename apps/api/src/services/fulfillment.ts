@@ -16,14 +16,14 @@ export function authorizeFulfillment(key: string | undefined, authorization: str
 
 /** Authorizes work but never issues a pack. External issuance MUST deduplicate by fulfillmentId. */
 export class FulfillmentService {
-  constructor(private readonly store: CheckoutStore) {}
+  constructor(private readonly store: CheckoutStore, private readonly advanceAllowed: (id: string) => boolean = () => false) {}
 
   get(purchaseId: string): FulfillmentAuthorization {
     const row = this.store.db.prepare("SELECT * FROM checkout_fulfillments WHERE purchase_id = ?").get(purchaseId);
     if (!row) throw new HttpError(404, "FULFILLMENT_NOT_FOUND", "No fulfillment authorization exists.");
     const purchase = this.store.get(purchaseId);
     return { fulfillmentId: row.id as string, purchaseId, buyerAddress: purchase.buyerAddress,
-      packType: purchase.packType, transactionHash: purchase.transactionHash!, status: row.status as FulfillmentAuthorization["status"],
+      packType: purchase.packType, transactionHash: purchase.transactionHash, status: row.status as FulfillmentAuthorization["status"],
       requestId: row.request_id as string, attempt: row.attempt as number,
       leaseExpiresAt: new Date(Number(row.lease_expires_at)).toISOString(), recoveryRequired: Boolean(row.recovery_required),
       createdAt: row.created_at as string, updatedAt: row.updated_at as string,
@@ -33,7 +33,7 @@ export class FulfillmentService {
   claim(purchaseId: string, requestId: string): FulfillmentAuthorization {
     return this.store.transaction(() => {
       const purchase = this.store.get(purchaseId);
-      if (purchase.status !== "confirmed" || !this.store.hasVerifiedOwner(purchaseId)) {
+      if ((purchase.status !== "confirmed" && !this.advanceAllowed(purchaseId)) || !this.store.hasVerifiedOwner(purchaseId)) {
         throw new HttpError(409, "PURCHASE_NOT_AUTHORIZED", "A confirmed, wallet-owned purchase is required.");
       }
       const row = this.store.db.prepare("SELECT * FROM checkout_fulfillments WHERE purchase_id = ?").get(purchaseId);

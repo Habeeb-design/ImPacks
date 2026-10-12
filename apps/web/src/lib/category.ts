@@ -1,6 +1,6 @@
-import { MAX_PACK_CENTS, MIN_PACK_CENTS, PACK_BUDGET_STEP_CENTS, PACK_PRICE_PRESETS_DOLLARS, type Theme } from "@impacks/contracts";
+import { MAX_PACK_CENTS, MIN_PACK_CENTS, PACK_BUDGET_STEP_CENTS, PACK_PRICE_PRESETS_DOLLARS, PACK_THEMES, type Theme } from "@impacks/contracts";
 
-export const categories = ["crypto", "sports", "mixed"] as const;
+export const categories = PACK_THEMES;
 export type CategoryId = (typeof categories)[number];
 
 export function isCategory(value: string): value is CategoryId {
@@ -26,6 +26,13 @@ export const categoryCopy: Record<CategoryId, { title: string; genre: string; ki
     kicker: "YOUR WORLD. YOUR BUDGET.",
     pitch: "Pick a stake. Cards fan across the table — overlapped, not fully shown. Opening still draws three random mixed markets.",
   },
+  politics: { title: "Politics", genre: "Politics", kicker: "YOUR WORLD. YOUR BUDGET.", pitch: "Choose your budget and reveal three random positions on elections, policy and political decisions." },
+  economics: { title: "Economics", genre: "Economics", kicker: "YOUR WORLD. YOUR BUDGET.", pitch: "Choose your budget and reveal three random positions on inflation, interest rates and growth." },
+  commodities: { title: "Commodities", genre: "Commodities", kicker: "YOUR WORLD. YOUR BUDGET.", pitch: "Choose your budget and reveal three random positions on metals, oil and raw materials." },
+  business: { title: "Business", genre: "Business", kicker: "YOUR WORLD. YOUR BUDGET.", pitch: "Choose your budget and reveal three random positions on earnings, deals and company milestones." },
+  culture: { title: "Culture", genre: "Culture", kicker: "YOUR WORLD. YOUR BUDGET.", pitch: "Choose your budget and reveal three random positions on music, movies and awards." },
+  tech: { title: "Tech", genre: "Tech", kicker: "YOUR WORLD. YOUR BUDGET.", pitch: "Choose your budget and reveal three random positions on AI, chips and product launches." },
+  weather: { title: "Weather", genre: "Weather", kicker: "YOUR WORLD. YOUR BUDGET.", pitch: "Choose your budget and reveal three random positions on rain, temperature and wind." },
 };
 
 export const priceTiers = [20, 50, 100] as const;
@@ -44,7 +51,7 @@ export function snapCustomDollars(raw: string): number | null {
 }
 
 export function money(cents: number): string {
-  return `$${(cents / 100).toFixed(0)}`;
+  return (cents / 100).toFixed(0);
 }
 
 export const TABLE_CARD_CAP = 10;

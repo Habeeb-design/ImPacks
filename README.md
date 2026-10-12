@@ -13,7 +13,7 @@ npm run dev
 
 Open http://localhost:3000. The Next.js App Router frontend proxies `/api` to the Fastify API at http://localhost:3001. Set the public Privy App ID as described in the app environment examples to enable email sign-in. Browse genres under Packs, select an available edition, accept random selection, and open it. Dashboard keeps the resulting cards grouped by opened pack and lets the signed-in owner inspect or close simulated positions.
 
-**Default mode:** pack payments and trades remain explicitly simulated. Wallet-owned AUSD checkouts, receipt verification and the optional Crypto sandbox purchase worker use durable SQLite storage. The [purchase pipeline guide](docs/PURCHASE_PIPELINE.md) covers payment → Gemini IOC orders → reconciled holdings → exact remainder refund. It is implemented behind disabled-by-default flags; actual funded-wallet end-to-end acceptance remains outstanding.
+**Checkout:** category Buy actions use the explicitly enabled testnet pipeline and require current per-edition readiness; otherwise checkout is unavailable. Legacy demo API endpoints and the paper marketplace remain separate simulated flows. Wallet-owned AUSD checkouts, receipt verification and the optional sandbox purchase worker use durable SQLite storage. The [purchase pipeline guide](docs/PURCHASE_PIPELINE.md) covers payment → Gemini IOC orders → reconciled holdings → exact remainder refund. It is implemented behind disabled-by-default flags; actual funded-wallet end-to-end acceptance remains outstanding.
 
 AUSD runs on Ethereum Sepolia and Gemini uses separately funded sandbox USD. No conversion bridge or production trading is implemented. Credentials and refund signing keys stay in server/worker secrets.
 
@@ -30,7 +30,7 @@ Start with [team roles and status](docs/TEAM.md), [API contract](docs/API.md), a
 
 **Integration branch:** [configuration and integration-test walkthrough](docs/INTEGRATION_TEST.md). The UI now connects the selected category/stake to durable testnet checkout, receipt verification and Dashboard payment history. The optional [durable purchase pipeline](docs/PURCHASE_PIPELINE.md) adds transfers and Gemini submissions when its dedicated worker is explicitly enabled and ready.
 
-Backend build plan: [sandbox treasury, ledger and execution](docs/PAYMENTS_ARCHITECTURE.md), followed by the optional [AUSD execution escrow](docs/ESCROW_SPEC.md). These plans describe the broader execution system; the current gated Crypto implementation and remaining live evidence are documented in the purchase pipeline guide.
+Backend build plan: [sandbox treasury, ledger and execution](docs/PAYMENTS_ARCHITECTURE.md), followed by the optional [AUSD execution escrow](docs/ESCROW_SPEC.md). These plans describe the broader execution system; the current gated testnet implementation and remaining live evidence are documented in the purchase pipeline guide.
 
 Optional [50-test-AUSD welcome grants](docs/WELCOME_GRANTS.md) on **Ethereum Sepolia (11155111)** are implemented and disabled by default. A separate worker funds new, verified Privy users from a dedicated external wallet, with PostgreSQL records preventing duplicate grants. Follow the setup guide to configure server secrets, migrate the database, and run the worker. This does not fund Gemini or enable pack payments.
 
@@ -56,7 +56,7 @@ Set the Vercel project root directory to `apps/web`, Node.js to `24.x`, and depl
 
 - Login → choose theme → approve budget and randomness → pay → reveal → collection.
 - Three distinct markets per pack; equal probability among eligible markets, 50/50 YES/NO sides, no replacement within a pack.
-- Starter price: 15 AUSD; three 5-unit allocations, no platform fee. Whole-contract fills may leave a remainder.
+- Judging demo: select 20 test AUSD for one Crypto pack, split across three positions, with no platform fee. Whole-contract fills and fees may leave a remainder. The older catalog's 15-AUSD default is not the selected demo checkout amount.
 - Server owns selection, budget and execution; browser animates stored results, never rerolls.
 - AUSD testnet payment and Gemini sandbox USD are separate. This MVP has no AUSD-to-Gemini bridge.
 - Target Most Creative, Gemini Predictions and Agora AUSD tracks. Replace fixtures with working testnet/sandbox integrations before judging.
@@ -65,4 +65,4 @@ The historical [Stage 1 execution guide](docs/EXECUTION.md) documents reservatio
 
 ## Paper position marketplace
 
-The isolated post-trade slice adds `/marketplace`: list existing position quantity, buy another user's listing, and transfer its future paper payout rights. It uses a durable SQLite ledger and separately labeled simulated USD. Enable the standalone API with `POSTTRADE_DEMO_ENABLED=1` and a persistent `POSTTRADE_DB_PATH`. See [setup, model and integration handoff](docs/POSTTRADE.md). Real-backed resale and payouts remain unimplemented.
+The isolated post-trade slice adds `/marketplace`: list existing position quantity, buy another user's listing, and transfer its future paper payout rights. It uses a durable SQLite ledger and separately labeled simulated AUSD. Enable the standalone API with `POSTTRADE_DEMO_ENABLED=1` and a persistent `POSTTRADE_DB_PATH`. See [setup, model and integration handoff](docs/POSTTRADE.md). Real-backed resale and payouts remain unimplemented.

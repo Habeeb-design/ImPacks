@@ -14,7 +14,8 @@ test("purchase APIs require both wallet proof and Privy identity, isolate owners
   const dir = mkdtempSync(join(tmpdir(), "pipeline-api-")); t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, "db.sqlite"), policy = { accountKey: "fixture", capacityCents: 100000, feeReserveBps: 1000 };
   const { privateKey, publicKey } = await generateKeyPair("ES256");
-  const app = buildApp({ checkoutDatabasePath: path, pipelinePolicy: policy, privyAppId: "fixture", privyKey: async () => publicKey,
+  let liveMarkets = true;
+  const app = buildApp({ checkoutDatabasePath: path, pipelinePolicy: policy, pipelineMarkets: { listEligible: async () => liveMarkets ? Array.from({ length: 3 }, (_, i) => ({ id: `live-fixture-${i}`, question: "Fixture?", theme: "crypto" as const, active: true, yesPriceCents: 40, noPriceCents: 60 })) : [] }, privyAppId: "fixture", privyKey: async () => publicKey,
     appOrigin, checkoutRecipientAddress: `0x${"33".repeat(20)}`, internalFulfillmentKey: "fixture-internal-key-at-least-32-characters" });
   t.after(() => app.close()); const db = new CheckoutStore(path); t.after(() => db.close());
   const ledger = new PipelineStore(db, policy); ledger.heartbeat(true, "fixture");
@@ -25,6 +26,12 @@ test("purchase APIs require both wallet proof and Privy identity, isolate owners
   assert.equal(created.statusCode, 201); const id = created.json().purchaseId, base = `/api/checkout/${id}`;
   assert.equal((await app.inject({ method: "POST", url: `${base}/start`, headers: auth, payload: {} })).statusCode, 401);
   assert.equal((await app.inject({ method: "POST", url: `${base}/start`, headers, payload: {} })).statusCode, 200);
+  liveMarkets = false;
+  const unavailable = await app.inject({ method: "POST", url: `${base}/payment-intent`, headers, payload: {} });
+  assert.equal(unavailable.statusCode, 409);
+  assert.equal(unavailable.json().error.code, "EDITION_UNAVAILABLE");
+  assert.equal(ledger.row(id)?.payment_attempt, null, "Stale readiness must never issue payment permission");
+  liveMarkets = true;
   const intent = await app.inject({ method: "POST", url: `${base}/payment-intent`, headers, payload: {} }); assert.equal(intent.statusCode, 200);
   assert.equal(intent.json().purchase.paymentEnabled, true);
   assert.equal((await app.inject({ method: "POST", url: `${base}/payment-intent`, headers, payload: {} })).statusCode, 409);

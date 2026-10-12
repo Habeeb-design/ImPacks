@@ -24,7 +24,7 @@ export class CheckoutStore {
     if (this.storage === "sqlite") mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(path, { timeout: 5000 });
     const version = this.db.prepare("PRAGMA user_version").get()!.user_version as number;
-    if (version > 6) { this.db.close(); throw new Error("Unsupported checkout database schema version."); }
+    if (version > 7) { this.db.close(); throw new Error("Unsupported checkout database schema version."); }
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA synchronous = FULL;
@@ -125,10 +125,18 @@ export class CheckoutStore {
         CREATE TABLE IF NOT EXISTS pipeline_heartbeats (
           account_key TEXT PRIMARY KEY, ready_until INTEGER NOT NULL, message TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS pipeline_pack_readiness (
+          account_key TEXT NOT NULL, pack_id TEXT NOT NULL, ready_until INTEGER NOT NULL,
+          PRIMARY KEY(account_key, pack_id)
+        );
         CREATE TABLE IF NOT EXISTS pipeline_refund_nonces (
           purchase_id TEXT PRIMARY KEY REFERENCES pipeline_jobs(purchase_id), nonce INTEGER NOT NULL UNIQUE
         );
-        PRAGMA user_version = 6;
+        CREATE TABLE IF NOT EXISTS pipeline_advances (
+          purchase_id TEXT PRIMARY KEY REFERENCES pipeline_jobs(purchase_id),
+          authorized_at TEXT NOT NULL
+        );
+        PRAGMA user_version = 7;
       `);
       for (const table of ["wallet_sessions", "wallet_challenges"]) {
         if (!this.db.prepare(`PRAGMA table_info(${table})`).all().some(column => column.name === "chain_id")) this.db.exec(`ALTER TABLE ${table} ADD COLUMN chain_id INTEGER`);

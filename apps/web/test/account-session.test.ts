@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { Session } from "@impacks/contracts";
+import { PACK_THEMES, type Session } from "@impacks/contracts";
 import { resolveAccountSession, postLoginPath } from "../src/lib/account-session";
 import { ApiError } from "../src/lib/api";
 
@@ -51,6 +51,7 @@ test("login returns to the selected pack and amount without external redirects",
   assert.equal(postLoginPath("/dashboard"),"/dashboard");
   assert.equal(postLoginPath("/category/crypto?amount=75"),"/category/crypto?amount=75");
   assert.equal(postLoginPath("/category/sports?amount=100"),"/category/sports?amount=100");
+  for (const theme of PACK_THEMES) assert.equal(postLoginPath(`/category/${theme}?amount=50`), `/category/${theme}?amount=50`);
   for (const path of [null,"https://evil.example","//evil.example","/\\evil.example","javascript:alert(1)","/category/unknown","/login"]) {
     assert.equal(postLoginPath(path),"/packs");
   }

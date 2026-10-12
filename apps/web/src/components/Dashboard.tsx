@@ -10,7 +10,7 @@ import { SiteHeader } from "./SiteHeader";
 import { useAccountWallet } from "./WalletProvider";
 import "./dashboard.css";
 
-const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+import { formatAusd as money } from "../lib/currency";
 const date = (value: string) => new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const filters: { value: CollectionFilter; label: string }[] = [
   { value: "all", label: "All cards" }, { value: "open", label: "Open" }, { value: "closed", label: "Closed" },
@@ -126,8 +126,8 @@ export function Dashboard() {
       {notice && <p className="collection-success" role="status">{notice}</p>}{closeError && <p className="collection-error" role="alert">{closeError} Retrying preserves the original request.</p>}
       {selectedStatus === "open" && selectedOpening.mode === "demo" && selectedCard.position?.remainingQuantity === undefined && (confirming ? <div className="collection-confirm"><strong>Close all {selectedCard.order.quantity} contracts?</strong><p>This is a simulated close at the service’s fixture price. No Gemini trade is submitted and no AUSD moves. Final proceeds appear after confirmation. Your collectible card stays.</p><button className="primary" disabled={closing} onClick={() => void closePosition()}>{closing ? "Confirming close…" : closeError ? "Retry simulated close" : "Confirm simulated close"}</button><button className="text-button" disabled={closing} onClick={() => { setConfirming(false); setCloseError(""); }}>Keep position open</button></div> : <button className="primary collection-close-position" onClick={() => setConfirming(true)}>Close position <span aria-hidden="true">↗</span></button>)}
       {selectedCard.position?.remainingQuantity !== undefined && <p className="collection-detail-note">You currently own {selectedCard.position.remainingQuantity} contracts from this fill. <a href="/marketplace">Manage current holdings and resale proceeds in Trade →</a></p>}
-      {selectedStatus === "open" && selectedOpening.mode !== "demo" && <p className="collection-detail-note">Position closing is not connected for sandbox execution yet.</p>}
-      <p className="collection-detail-note">{selectedOpening.mode === "demo" ? "Simulated execution" : "Sandbox execution"} · Opened {date(selectedOpening.createdAt)}</p></div></div></>}
+      {selectedStatus === "open" && selectedOpening.mode !== "demo" && <p className="collection-detail-note">Position closing is not available for testnet predictions yet.</p>}
+      <p className="collection-detail-note">{selectedOpening.mode === "demo" ? "Simulated execution" : "Testnet execution"} · Opened {date(selectedOpening.createdAt)}</p></div></div></>}
     </dialog>
     <footer className="collection-footer"><span>Collect the moments. Follow the outcomes.</span><a href="/packs">Find your next edition ↗</a></footer>
   </main>;

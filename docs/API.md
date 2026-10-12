@@ -299,3 +299,17 @@ See [configuration, recovery and live-test limitations](PURCHASE_PIPELINE.md). T
 Capabilities include `purchaseMode`, `enabledPackIds`, and dynamic payment/order/refund availability. Sandbox currently enables only Crypto. Checkout status adds `pipeline` (state, message, paymentRequested, paymentHash). Its final opening appears only after persisted settlement. Holdings/transactions remain wallet-owned; Privy identity alone cannot read another wallet's checkout. New DTOs and validation live in `@impacks/contracts`, with typed browser calls in `apps/web/src/lib/api.ts`.
 
 A conflict after a wallet request or exchange submission must resume the original identity; it must not create a new payment or redraw. Authoritative worker evidence is not accepted from public HTTP bodies, and legacy internal execution-report mutations are blocked for worker-managed purchases.
+
+### Testnet edition availability
+
+`GET /api/checkout-capabilities` returns `enabledPackIds` from the purchase worker's current per-edition readiness. Catalog membership alone does not authorize payment. Category checkout accepts crypto, sports, politics, economics, commodities, business, culture, tech, weather, and mixed (Chaos). The worker requires three distinct quoted sandbox instruments per enabled edition; mixed draws across available categories. Readiness expires after 45 seconds and the browser refreshes it every 15 seconds.
+
+Starting a purchase rejects unavailable editions with `EDITION_UNAVAILABLE`; payment intent checks readiness again and rejects a newly unavailable edition with `PAYMENT_UNAVAILABLE`. Existing submitted payments/orders retain their durable reconciliation identities. No unavailable edition falls back to simulated opening.
+
+Payment intent additionally re-reads Gemini sandbox instruments for that edition at request time. A stale positive worker heartbeat cannot authorize payment when the live market count has fallen below the pack's card count. An upstream lookup failure returns `MARKETS_UNAVAILABLE` without setting a payment attempt. Selection and order validation still refresh market data during execution.
+
+### Testnet platform advances
+
+`CheckoutCapabilities.fundingMode` and `PipelineStatus.fundingMode` distinguish `payment-first` from `platform-advance`. These optional fields are server-owned. The same typed `startPurchase` call starts an authorized advance; the browser supplies no funding authorization. In advance mode, wait for `CheckoutStatus.opening`, reveal its real fills with `opening.payment.status: pending`, then call the existing `payment-intent`/wallet transfer/attach-payment flow. Collection before a result returns `ADVANCE_PROCESSING`. An existing unpaid advance blocks another with `ADVANCE_OUTSTANDING`; the cumulative advance ceiling returns `ADVANCE_CAPACITY`.
+
+The worker’s internal fulfillment DTO may have a null transaction hash until collection. Existing payment-first services still require a confirmed receipt. Collection after a delivered advance remains available during market/readiness outages, and refunds still require verified collection. No secrets, internal advance rows or signing payloads are returned to the browser.

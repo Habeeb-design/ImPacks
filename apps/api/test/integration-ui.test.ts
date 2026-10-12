@@ -47,10 +47,10 @@ test("category checkout rejects missing consent, missing retry identity and inve
   const app = appAt(); t.after(() => app.close());
   const headers = await walletHeaders(app);
   assert.equal((await app.inject({ method: "POST", url: "/api/checkout", headers, payload: body })).statusCode, 400);
-  for (const invalid of [{ ...body, disclosureVersion: undefined }, { ...body, packId: "politics" }, { ...body, budgetCents: 2001 }]) {
+  for (const invalid of [{ ...body, disclosureVersion: undefined }, { ...body, packId: "not-a-pack" }, { ...body, budgetCents: 2001 }]) {
     assert.equal((await app.inject({ method: "POST", url: "/api/checkout", headers: { ...headers, "idempotency-key": randomUUID() }, payload: invalid })).statusCode, 400);
   }
-  assert.equal((await app.inject({ url: "/api/packs" })).json().packs.length, 3);
+  assert.equal((await app.inject({ url: "/api/packs" })).json().packs.length, 10);
   assert.equal((await app.inject({ url: "/api/health" })).json().integrations.orders, "simulated");
 });
 

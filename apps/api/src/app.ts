@@ -1,3 +1,4 @@
+import { GeminiSandboxGateway } from "./pipeline/gemini.js";
 import { PipelineStore } from "./pipeline/store.js";
 import { configuredPipeline } from "./pipeline/runtime.js";
 import type { PipelinePolicy } from "./pipeline/ports.js";
@@ -38,7 +39,7 @@ import { emptyBodySchema, walletChallengeSchema, walletSignatureSchema, fulfillm
 import { WalletAuthService } from "./services/wallet-auth.js";
 import { FulfillmentService, authorizeFulfillment } from "./services/fulfillment.js";
 
-export function buildApp(options: { pipelinePolicy?: PipelinePolicy; postTrade?: PostTradeStore; ephemeralDemo?: boolean; embeddedDemo?: boolean; privyAppId?: string; privyKey?: JWTVerifyGetKey; grants?: GrantApi; mode?: string; providers?: Providers; checkoutRecipientAddress?: string;
+export function buildApp(options: { pipelinePolicy?: PipelinePolicy; pipelineMarkets?: MarketProvider; postTrade?: PostTradeStore; ephemeralDemo?: boolean; embeddedDemo?: boolean; privyAppId?: string; privyKey?: JWTVerifyGetKey; grants?: GrantApi; mode?: string; providers?: Providers; checkoutRecipientAddress?: string;
   checkoutDatabasePath?: string; paymentVerifier?: PaymentVerifier; appOrigin?: string; internalFulfillmentKey?: string; executionMarkets?: MarketProvider } = {}) {
   if ((options.mode ?? "demo") !== "demo") throw new Error("Only demo mode is wired. Implement verified identity, durable storage, AUSD and Gemini providers before enabling sandbox.");
   const privyAppId = options.privyAppId ?? process.env.PRIVY_APP_ID ?? process.env.NEXT_PUBLIC_PRIVY_APP_ID;
@@ -56,6 +57,9 @@ export function buildApp(options: { pipelinePolicy?: PipelinePolicy; postTrade?:
   const checkoutStore = new CheckoutStore(databasePath);
   app.addHook("onClose", async () => checkoutStore.close());
   const pipeline = embeddedDemo ? undefined : options.pipelinePolicy ? new PipelineStore(checkoutStore, options.pipelinePolicy) : configuredPipeline(checkoutStore);
+  const intentGateway = pipeline && !options.pipelineMarkets && process.env.GEMINI_API_KEY && process.env.GEMINI_API_SECRET
+    ? new GeminiSandboxGateway(pipeline, process.env.GEMINI_API_KEY, process.env.GEMINI_API_SECRET) : undefined;
+  const intentMarkets = options.pipelineMarkets ?? (intentGateway ? { listEligible: (theme: Parameters<MarketProvider["listEligible"]>[0]) => intentGateway.markets(theme) } : undefined);
   const checkout = new CheckoutService(options.checkoutRecipientAddress ?? process.env.AUSD_RECIPIENT_ADDRESS,
     checkoutStore, options.paymentVerifier ?? configuredPaymentVerifier());
   const walletAuth = new WalletAuthService(checkoutStore, options.appOrigin ?? process.env.APP_ORIGIN);
@@ -136,9 +140,10 @@ export function buildApp(options: { pipelinePolicy?: PipelinePolicy; postTrade?:
     try { const raw = options.appOrigin ?? process.env.APP_ORIGIN; const url = new URL(raw ?? ""); originReady = raw === url.origin && (url.protocol === "https:" || (url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))); } catch { /* unavailable */ }
     const available = !embeddedDemo && !!recipient && isAddress(recipient) && !/^0x0{40}$/i.test(recipient) && originReady;
     const paymentEnabled = available && !!verifyPrivy && (pipeline?.ready() ?? false);
-    return { available, chainId: 11155111, network: "Ethereum Sepolia", purchaseMode: pipeline ? "sandbox" : "demo", enabledPackIds: pipeline ? ["crypto"] : ["crypto", "sports", "mixed"], paymentEnabled,
+    return { available, chainId: 11155111, network: "Ethereum Sepolia", purchaseMode: pipeline ? "sandbox" : "demo", enabledPackIds: pipeline ? pipeline.enabledPackIds() : packs.map(pack => pack.id), paymentEnabled,
+      fundingMode: pipeline?.policy.platformAdvance ? "platform-advance" : "payment-first",
       orderSubmissionEnabled: paymentEnabled, refundBroadcastEnabled: paymentEnabled,
-      reason: paymentEnabled ? "Testnet payment and sandbox execution are ready. Purchases resume across restarts." : available ? "Checkout preparation is available. Receipt verification requires configured Ethereum Sepolia RPC access. Trading and refund transfers are not enabled."
+      reason: paymentEnabled ? "Testnet payment and predictions are ready. Purchases resume across restarts." : available ? "Checkout preparation is available. Receipt verification requires configured Ethereum Sepolia RPC access. Trading and refund transfers are not enabled."
         : "Testnet checkout needs a standalone API, receiving wallet and configured application origin." };
   });
   app.get(routes.checkout, async request => {
@@ -168,7 +173,7 @@ export function buildApp(options: { pipelinePolicy?: PipelinePolicy; postTrade?:
     return checkoutStatus(checkout, execution, refunds, purchaseId, identity.walletAddress, pipeline);
   });
   async function pipelineOwner(request: { headers: Record<string, unknown> }) {
-    if (!pipeline || !verifyPrivy) throw new HttpError(503, "PIPELINE_DISABLED", "Sandbox purchase processing is not configured.");
+    if (!pipeline || !verifyPrivy) throw new HttpError(503, "PIPELINE_DISABLED", "Purchase processing is not configured.");
     const token = request.headers["x-privy-token"];
     if (typeof token !== "string") throw new HttpError(401, "PRIVY_REQUIRED", "Sign in to start a purchase.");
     return (await verifyPrivy(token)).id;
@@ -186,6 +191,18 @@ export function buildApp(options: { pipelinePolicy?: PipelinePolicy; postTrade?:
     emptyBodySchema.parse(request.body);
     const { purchaseId } = checkoutParamsSchema.parse(request.params);
     const owner = await pipelineOwner(request);
+    const purchase = checkoutStore.getOwned(purchaseId, identity.walletAddress);
+    if (pipeline!.isAdvanced(purchaseId) && pipeline!.opening(purchaseId)) {
+      return pipeline!.paymentIntent(purchaseId, identity.walletAddress, owner);
+    }
+    if (!purchase.pack || !intentMarkets) throw new HttpError(503, "MARKETS_UNAVAILABLE", "Live market availability could not be checked. No payment was requested.");
+    let markets;
+    try { markets = await intentMarkets.listEligible(purchase.pack.theme); }
+    catch { throw new HttpError(503, "MARKETS_UNAVAILABLE", "Gemini sandbox markets are temporarily unavailable. Retry this checkout; no payment was requested."); }
+    const eligible = markets.filter(market => market.active && (purchase.pack!.theme === "mixed" || market.theme === purchase.pack!.theme));
+    if (new Set(eligible.map(market => market.id)).size < purchase.pack.cardCount) {
+      throw new HttpError(409, "EDITION_UNAVAILABLE", "This edition no longer has enough tradable markets. No payment was requested.");
+    }
     return pipeline!.paymentIntent(purchaseId, identity.walletAddress, owner);
   });
   app.post(`${routes.checkout}/:purchaseId/payment-rejected`, async (request, reply) => {

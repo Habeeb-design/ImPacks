@@ -152,9 +152,17 @@ export class PipelineStore implements SettlementAuthority {
     });
   }
   observed(id: string, token: string, observation: OrderObservation) {
-    this.assertLease(id, token);
-    this.store.db.prepare("UPDATE pipeline_submissions SET observation_json=? WHERE client_order_id=? AND purchase_id=?")
-      .run(JSON.stringify(observation), observation.clientOrderId, id);
+    this.store.transaction(() => {
+      this.assertLease(id, token);
+      // An unplaced verdict for a never-permitted order still needs a durable row so no later permit can be issued for it.
+      if (observation.state === "rejected") this.store.db.prepare("INSERT OR IGNORE INTO pipeline_submissions VALUES (?,?,NULL,?)").run(observation.clientOrderId, id, Date.now());
+      this.store.db.prepare("UPDATE pipeline_submissions SET observation_json=? WHERE client_order_id=? AND purchase_id=?")
+        .run(JSON.stringify(observation), observation.clientOrderId, id);
+    });
+  }
+  submission(clientId: string): { attemptedAt: number } | null {
+    const row = this.store.db.prepare("SELECT attempted_at FROM pipeline_submissions WHERE client_order_id=?").get(clientId);
+    return row ? { attemptedAt: Number(row.attempted_at) } : null;
   }
   observation(clientId: string): OrderObservation | null {
     const row = this.store.db.prepare("SELECT observation_json FROM pipeline_submissions WHERE client_order_id=?").get(clientId);

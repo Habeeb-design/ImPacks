@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { PACK_THEMES, type Opening, type SandboxExecution, type SandboxOrderIntent } from "@impacks/contracts";
 import type { Hash } from "viem";
 import { CheckoutService } from "../services/checkout.js";
@@ -9,6 +9,12 @@ import type { PaymentVerifier } from "../providers/ausd/verify.js";
 import { PipelineStore } from "./store.js";
 import type { OrderObservation, RefundTransport, TradingGateway } from "./ports.js";
 
+/** A permitted submission whose order is still absent from every exchange listing this long after the attempt is final: it was never placed. */
+export const ABSENCE_GRACE_MS = 10 * 60_000;
+/** Unpermitted orders are placed within this window after preparation or not at all; no redraw or repricing. */
+export const SUBMISSION_WINDOW_MS = 15 * 60_000;
+/** Jobs needing reconciliation retry on this cadence so one stuck purchase cannot exhaust nonces or starve readiness. */
+export const RECONCILIATION_RETRY_MS = 60_000;
 export class PurchaseWorker {
   readonly execution: ExecutionService;
   private fulfillment: FulfillmentService;
@@ -32,13 +38,15 @@ export class PurchaseWorker {
       const enabled = PACK_THEMES.filter((_, index) => checks[index].status === "fulfilled" && checks[index].value);
       if (!enabled.length) throw new Error("Fewer than three supported sandbox instruments");
       this.ledger.heartbeat(true, "Testnet purchases are ready", enabled);
-    } catch {
+    } catch (error) {
+      console.error(`[purchase-worker] readiness: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`);
       this.ledger.heartbeat(false, "Testnet trading account, supported predictions, or balance is unavailable");
     }
   }
   async tick({ refreshReadiness = true } = {}) {
     if (refreshReadiness) await this.readiness();
-    const jobs = this.ledger.store.db.prepare("SELECT purchase_id FROM pipeline_jobs WHERE account_key=? AND state!='completed' ORDER BY updated_at LIMIT 50").all(this.gateway.accountKey);
+    const jobs = this.ledger.store.db.prepare(`SELECT purchase_id FROM pipeline_jobs WHERE account_key=? AND state!='completed'
+      AND (state!='reconciliation-required' OR updated_at<=?) ORDER BY updated_at LIMIT 50`).all(this.gateway.accountKey, Date.now() - RECONCILIATION_RETRY_MS);
     for (const row of jobs) await this.run(String(row.purchase_id));
   }
   async run(id: string) {
@@ -86,21 +94,33 @@ export class PurchaseWorker {
         const order = this.execution.get(id).orders.find(value => value.clientOrderId === original.clientOrderId)!;
         const prior = this.ledger.observation(order.clientOrderId);
         if (prior?.feesFinal && prior.state !== "open") continue;
-        let observed: OrderObservation | null;
-        const submitted = this.ledger.store.db.prepare("SELECT 1 FROM pipeline_submissions WHERE client_order_id=?").get(order.clientOrderId);
-        if (!submitted) {
-          if (!this.ledger.ready()) throw new Error("Worker unavailable for new submissions; existing orders remain recoverable");
+        let observed: OrderObservation | null = null;
+        const submission = this.ledger.submission(order.clientOrderId);
+        if (!submission) {
           await this.gateway.markets(execution.pack.theme); // Fresh metadata only needed for new submissions.
-          await this.gateway.validate(order);
-          if (!advance || purchase.status === "confirmed") await this.payments.verify(purchase, purchase.transactionHash as Hash);
-          this.ledger.assertLease(id, token);
-          if (!this.ledger.permit(id, token, order)) observed = await this.gateway.lookup(order);
-          else {
-            // Permit commits before network I/O. A timeout/crash never results in resubmission.
-            try { observed = await this.gateway.submit(order); }
-            catch { observed = null; }
+          try { await this.gateway.validate(order); }
+          catch (error) {
+            // Nothing was ever sent for this card. Once its window closes, it stays unfilled instead of retrying forever.
+            // This verdict uses public instrument data only, so it does not wait for account readiness.
+            if (Date.parse(execution.createdAt) + SUBMISSION_WINDOW_MS > Date.now()) throw error;
+            observed = this.unplaced(order, "submission-window-closed");
           }
-        } else observed = await this.gateway.lookup(order);
+          if (!observed) {
+            if (!this.ledger.ready()) throw new Error("Worker unavailable for new submissions; existing orders remain recoverable");
+            if (!advance || purchase.status === "confirmed") await this.payments.verify(purchase, purchase.transactionHash as Hash);
+            this.ledger.assertLease(id, token);
+            if (!this.ledger.permit(id, token, order)) observed = await this.gateway.lookup(order);
+            else {
+              // Permit commits before network I/O. A timeout/crash never results in resubmission.
+              try { observed = await this.gateway.submit(order); }
+              catch { observed = null; }
+            }
+          }
+        } else {
+          observed = await this.gateway.lookup(order);
+          // A complete, successful search that still finds nothing well after the attempt is final evidence of no order.
+          if (!observed && submission.attemptedAt + ABSENCE_GRACE_MS <= Date.now()) observed = this.unplaced(order, "absent-after-grace");
+        }
         this.ledger.assertLease(id, token);
         if (!observed) {
           this.ledger.update(id, token, "reconciliation-required", "Order result is uncertain. Looking up the original order; no duplicate order will be sent.");
@@ -136,12 +156,25 @@ export class PurchaseWorker {
       }
       this.ledger.settle(id, token, execution, opening);
       await this.refund(id, token);
-    } catch {
+    } catch (error) {
+      // Operator log only: adapter errors carry status/validation text, never credentials or signing material.
+      console.error(`[purchase-worker] ${id}: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`);
       // Do not expose upstream responses or signing material to the public status endpoint.
       try { this.ledger.update(id, token, "reconciliation-required", "Purchase needs reconciliation. Its payment and order identities are preserved; do not pay again."); } catch { /* lease taken over */ }
     } finally { this.ledger.release(id, token); }
   }
+  /** Terminal evidence that no exchange order exists for this client ID. Never a resubmission permit. */
+  private unplaced(order: SandboxOrderIntent, reason: string): OrderObservation {
+    return { clientOrderId: order.clientOrderId, exchangeOrderId: "", state: "rejected", quantity: 0, costCents: 0, feeCents: 0,
+      costAtomic: "0", feeAtomic: "0", feesFinal: true,
+      evidence: createHash("sha256").update(`unplaced:${reason}:${order.clientOrderId}:${new Date().toISOString()}`).digest("hex") };
+  }
   private validateObservation(order: SandboxOrderIntent, value: OrderObservation) {
+    if (value.state === "rejected") {
+      if (value.clientOrderId !== order.clientOrderId || value.exchangeOrderId || !value.feesFinal || value.quantity || value.costCents || value.feeCents
+        || value.costAtomic !== "0" || value.feeAtomic !== "0" || order.filledQuantity || order.exchangeOrderId) throw new Error("Unplaced order evidence conflicts with recorded fills");
+      return;
+    }
     if (value.clientOrderId !== order.clientOrderId || !value.exchangeOrderId || !value.evidence
       || !["open", "filled", "cancelled"].includes(value.state) || !Number.isSafeInteger(value.quantity) || value.quantity < order.filledQuantity
       || !Number.isSafeInteger(value.costCents) || !Number.isSafeInteger(value.feeCents) || value.costCents < order.costCents || value.feeCents < order.feeCents
@@ -155,10 +188,11 @@ export class PurchaseWorker {
   }
   private project(id: string, attempt: { requestId: string; attempt: number }, order: SandboxOrderIntent, observed: OrderObservation) {
     const state = observed.feesFinal ? observed.state : "open";
-    const same = order.state === state && order.exchangeOrderId === observed.exchangeOrderId && order.filledQuantity === observed.quantity
+    const exchangeOrderId = observed.state === "rejected" ? null : observed.exchangeOrderId;
+    const same = order.state === state && order.exchangeOrderId === exchangeOrderId && order.filledQuantity === observed.quantity
       && order.costCents === observed.costCents && order.feeCents === observed.feeCents;
     if (!same) this.execution.report(id, { ...attempt, clientOrderId: order.clientOrderId, revision: order.revision + 1,
-      state, exchangeOrderId: observed.exchangeOrderId, filledQuantity: observed.quantity, costCents: observed.costCents, feeCents: observed.feeCents });
+      state, exchangeOrderId, filledQuantity: observed.quantity, costCents: observed.costCents, feeCents: observed.feeCents });
   }
   private async refund(id: string, token: string) {
     this.ledger.assertLease(id, token);

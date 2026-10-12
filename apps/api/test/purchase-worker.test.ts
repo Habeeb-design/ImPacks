@@ -11,7 +11,7 @@ import { CheckoutStore } from "../src/storage/checkout.js";
 import { CheckoutService } from "../src/services/checkout.js";
 import { RefundService } from "../src/services/refunds.js";
 import { PipelineStore } from "../src/pipeline/store.js";
-import { PurchaseWorker } from "../src/pipeline/worker.js";
+import { ABSENCE_GRACE_MS, PurchaseWorker, RECONCILIATION_RETRY_MS, SUBMISSION_WINDOW_MS } from "../src/pipeline/worker.js";
 import type { OrderObservation, TradingGateway, RefundTransport } from "../src/pipeline/ports.js";
 import { checkoutStatus } from "../src/services/checkout-status.js";
 import { FulfillmentService } from "../src/services/fulfillment.js";
@@ -289,4 +289,65 @@ test("advance cannot collect early, exceed capacity, or duplicate uncertain orde
   assert.throws(() => x.ledger.enqueue(purchase.purchaseId, other, "did:privy:fixture"), { code: "ADVANCE_OUTSTANDING" });
   x.store.db.prepare("UPDATE pipeline_jobs SET spent_cents=?").run(49000);
   assert.throws(() => x.ledger.enqueue(purchase.purchaseId, other, "did:privy:other"), { code: "ADVANCE_CAPACITY" });
+});
+
+test("a permitted order still absent after the grace period is finalized unfilled; the rest of the pack proceeds", async t => {
+  const x = setup(t), id = x.purchase.purchaseId; x.set({ rejectSubmission: true });
+  await x.worker.run(id); x.remote.clear(); x.set({ rejectSubmission: false });
+  const lost = x.submitted[0]!;
+  await x.worker.run(id);
+  assert.equal(x.submitted.length, 1, "Within the grace period absence stays uncertain");
+  x.store.db.prepare("UPDATE pipeline_submissions SET attempted_at=? WHERE client_order_id=?").run(Date.now() - ABSENCE_GRACE_MS - 1, lost);
+  await x.worker.run(id);
+  assert.equal(x.ledger.status(id)?.state, "completed");
+  assert.equal(x.submitted.length, 3, "Remaining cards are submitted once; the lost client ID is never resent");
+  assert.equal(x.submitted.filter(value => value === lost).length, 1);
+  const orders = x.worker.execution.get(id).orders, unplaced = orders.find(order => order.clientOrderId === lost)!;
+  assert.equal(unplaced.state, "rejected"); assert.equal(unplaced.exchangeOrderId, null); assert.equal(unplaced.card.order.status, "failed");
+  assert.equal(x.ledger.observation(lost)?.state, "rejected");
+  const opening = x.ledger.opening(id)!;
+  assert.equal(opening.status, "partial"); assert.equal(opening.cards.filter(card => card.order.status === "filled").length, 2);
+  assert.equal(BigInt(x.refunds.get(id).authorizedAtomic!), 20000000n - orders.reduce((n, order) => n + BigInt(order.costCents + order.feeCents) * 10000n, 0n));
+  await x.worker.run(id); assert.equal(x.submitted.length, 3); assert.equal(x.signatures(), 1);
+});
+test("an unpermitted order whose instrument can no longer be validated is finalized unfilled after the submission window", async t => {
+  const x = setup(t), id = x.purchase.purchaseId;
+  let blocked: string | null = null, validations = 0;
+  x.gateway.validate = async order => { validations++; if (blocked === null) blocked = order.clientOrderId; if (order.clientOrderId === blocked) throw new Error("Price moved beyond the stored limit; no repricing or redraw is allowed"); };
+  await x.worker.run(id);
+  assert.equal(x.ledger.status(id)?.state, "reconciliation-required"); assert.equal(x.submitted.length, 0);
+  await x.worker.run(id); assert.equal(x.submitted.length, 0, "Inside the window the order is retried, not abandoned");
+  const execution = x.worker.execution.get(id);
+  x.store.db.prepare("UPDATE sandbox_executions SET execution_json=? WHERE purchase_id=?")
+    .run(JSON.stringify({ ...execution, orders: [], createdAt: new Date(Date.now() - SUBMISSION_WINDOW_MS - 1).toISOString() }), id);
+  await x.worker.run(id);
+  assert.equal(x.ledger.status(id)?.state, "completed");
+  assert.equal(x.submitted.length, 2); assert.ok(!x.submitted.includes(blocked!));
+  assert.equal(x.worker.execution.get(id).orders.find(order => order.clientOrderId === blocked)?.card.order.status, "failed");
+  assert.equal(x.ledger.opening(id)?.status, "partial");
+  assert.ok(validations >= 3);
+});
+test("a stuck platform advance finalizes its unplaced order and offers collection of the delivered cards", async t => {
+  const x = setup(t, "crypto", true), id = x.purchase.purchaseId; x.set({ rejectSubmission: true });
+  await x.worker.run(id); x.remote.clear(); x.set({ rejectSubmission: false });
+  assert.throws(() => x.ledger.paymentIntent(id, owner, "did:privy:fixture"), { code: "ADVANCE_PROCESSING" });
+  x.store.db.prepare("UPDATE pipeline_submissions SET attempted_at=?").run(Date.now() - ABSENCE_GRACE_MS - 1);
+  await x.worker.run(id);
+  assert.equal(x.ledger.status(id)?.state, "awaiting-payment");
+  const opening = x.ledger.opening(id)!;
+  assert.equal(opening.payment.status, "pending"); assert.equal(opening.status, "partial");
+  assert.equal(opening.cards.filter(card => card.order.status === "failed").length, 1);
+  assert.equal(x.submitted.length, 3); assert.equal(x.signatures(), 0);
+  assert.equal(x.ledger.paymentIntent(id, owner, "did:privy:fixture").purchase.paymentEnabled, true);
+});
+test("reconciliation retries back off so one stuck purchase cannot monopolize the exchange nonce window", async t => {
+  const x = setup(t), id = x.purchase.purchaseId; x.set({ rejectSubmission: true });
+  let lookups = 0; const lookup = x.gateway.lookup; x.gateway.lookup = async order => { lookups++; return lookup(order); };
+  await x.worker.run(id); assert.equal(x.ledger.status(id)?.state, "reconciliation-required");
+  await x.worker.tick({ refreshReadiness: false }); await x.worker.tick({ refreshReadiness: false });
+  assert.equal(lookups, 0, "A freshly failed job is not re-run on the next tick");
+  x.store.db.prepare("UPDATE pipeline_jobs SET updated_at=? WHERE purchase_id=?").run(Date.now() - RECONCILIATION_RETRY_MS, id);
+  await x.worker.tick({ refreshReadiness: false });
+  assert.equal(lookups, 1, "After the retry interval the original order is looked up again, never resent");
+  assert.equal(new Set(x.submitted).size, x.submitted.length, "Only new client IDs reach the exchange");
 });

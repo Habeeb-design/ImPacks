@@ -1,8 +1,9 @@
 import type { Market, SandboxOrderIntent, Theme } from "@impacks/contracts";
 
+/** `rejected` records a terminal, evidence-backed conclusion that no exchange order exists for this client ID. */
 export interface OrderObservation {
   clientOrderId: string; exchangeOrderId: string;
-  state: "open" | "filled" | "cancelled";
+  state: "open" | "filled" | "cancelled" | "rejected";
   quantity: number; costCents: number; feeCents: number;
   costAtomic: string; feeAtomic: string; feesFinal: boolean; evidence: string;
 }
